@@ -5,6 +5,14 @@
   "type": "module",
   "license": "MIT",
   "author": "Bob Mattax <bob@buzzwordmojo.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/buzzwordmojo/cairns.git"
+  },
+  "homepage": "https://github.com/buzzwordmojo/cairns#readme",
+  "bugs": {
+    "url": "https://github.com/buzzwordmojo/cairns/issues"
+  },
   "keywords": [
     "tasks",
     "backlog",
