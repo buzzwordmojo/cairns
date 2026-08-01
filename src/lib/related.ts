@@ -5,7 +5,7 @@ import { type LogEntry, openQuestionEntries, readLog, supersededIds } from "./lo
 import { type Task, listTasks } from "./task.js";
 
 /** How a task got linked to the path. Never present a derived guess as a record. */
-export type Method = "trailer" | "targets";
+export type Method = "trailer" | "linked" | "targets";
 
 export interface RelatedTask {
   task: Task;
@@ -47,12 +47,15 @@ export function related(board: Board, rawPath: string, opts: { rebuild?: boolean
     }
   }
 
+  // Strongest provenance first: git said so, then a human said git said so, then
+  // someone wrote it down before the work started.
   const all = listTasks(board);
   for (const t of all) {
     if (byTask.has(t.id)) continue;
-    if (t.targets.some((target) => pathMatches(normalizePath(board, target), path))) {
-      byTask.set(t.id, { method: "targets", commits: [] });
-    }
+    const hit = (paths: string[]) =>
+      paths.some((p) => pathMatches(normalizePath(board, p), path));
+    if (hit(t.linked)) byTask.set(t.id, { method: "linked", commits: [] });
+    else if (hit(t.targets)) byTask.set(t.id, { method: "targets", commits: [] });
   }
 
   const rows: RelatedTask[] = [];

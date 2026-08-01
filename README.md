@@ -5,8 +5,8 @@ A repo-native task board that doubles as memory for coding agents.
 A cairn is a stack of stones left on a route so the next person through knows the
 way — including where the trail does not go.
 
-> Status: v0.1.0. The CLI and the interactive board work end to end. Not yet
-> published to npm.
+> Status: v0.0.1 — an early release. The CLI and the interactive board work end
+> to end, but the interface is still settling. Expect breaking changes.
 
 ## The idea
 
@@ -52,7 +52,11 @@ are hand-written and unverified, and nothing tells a model to trust them over it
 own reading of the code.
 
 Links to code are derived from git rather than maintained by hand, via a commit
-trailer written by a hook you never think about.
+trailer written by a hook you never think about. The hook has to know which task
+you are on, so it reads the active task and falls back to the branch name — and
+when it can find neither it says so on the commit instead of skipping quietly.
+For commits already made without it, `cairn link` recovers the file list and
+reports it as a backfill, never as something git vouched for.
 
 Context cost is fixed and small. Everything that loads by default is capped, so
 the board does not get more expensive as the backlog grows.
@@ -82,6 +86,7 @@ cairn done <id> --outcome "…"  # refuses to close without one
 
 cairn search <term>            # ranked across logs and closed tasks
 cairn related <path>           # what to know before editing this file
+cairn link <id> <rev>…         # recover the file list from commits made without it
 cairn board                    # interactive board
 ```
 
@@ -96,7 +101,7 @@ accepted — honest vagueness beats a confident guess.
 | File | Marker |
 |---|---|
 | `CLAUDE.md` / `AGENTS.md` | `<!-- cairns:begin v1 -->` … `<!-- cairns:end -->` |
-| `.git/hooks/*` | `# cairns:hook v1` |
+| `.git/hooks/*` | `# cairns:hook v2` |
 | `.gitattributes` | `# cairns:attributes` |
 
 ```sh

@@ -18,6 +18,12 @@ export interface Task {
   closed?: string;
   /** Intent, written at creation. Never merged with `touched`, which git derives. */
   targets: string[];
+  /**
+   * Paths recovered from commits that predate the task, or that were made
+   * without it active. Kept apart from `targets` because it is evidence, not
+   * intent, and apart from the trailer index because git cannot vouch for it.
+   */
+  linked: string[];
   plan: { path?: string; stamped?: string };
   doneWhen: string[];
   context: string;
@@ -57,6 +63,7 @@ export function parseTask(text: string, path: string, fallbackId: string): Task 
     updated: fm.getOr("updated", ""),
     closed: fm.get("closed"),
     targets: fm.getList("targets"),
+    linked: fm.getList("linked"),
     plan: fm.getMap("plan"),
     doneWhen: readSectionLines(body, "done-when"),
     context: readSection(body, "context"),
@@ -78,6 +85,7 @@ export function writeTask(task: Task): void {
   task.fm.set("updated", today());
   if (task.closed) task.fm.set("closed", task.closed);
   if (task.targets.length) task.fm.set("targets", task.targets);
+  if (task.linked.length) task.fm.set("linked", task.linked);
   if (task.plan.path) task.fm.set("plan", task.plan as Record<string, string>);
   mkdirSync(dirname(task.path), { recursive: true });
   writeFileSync(task.path, serializeDocument(task.fm, task.body));
@@ -116,6 +124,7 @@ export function createTask(board: Board, opts: CreateOptions): Task {
     created: today(),
     updated: today(),
     targets: opts.targets ?? [],
+    linked: [],
     plan: {},
     doneWhen: opts.doneWhen ?? [],
     context: opts.context ?? "",

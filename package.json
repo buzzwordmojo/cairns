@@ -1,6 +1,6 @@
 {
   "name": "cairns",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "A repo-native task board that doubles as memory for coding agents",
   "type": "module",
   "license": "MIT",
@@ -24,7 +24,7 @@
     "git"
   ],
   "bin": {
-    "cairn": "./dist/cli.js"
+    "cairn": "dist/cli.js"
   },
   "files": [
     "dist",

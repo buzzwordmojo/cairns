@@ -181,5 +181,7 @@ export function reindex(_args: Args): number {
 function methodTag(method: string): string {
   // Label which method produced each result rather than presenting a derived
   // guess as a record.
-  return method === "trailer" ? "" : dim(`  (via declared targets, not commits)`);
+  if (method === "trailer") return "";
+  if (method === "linked") return dim(`  (via backfilled commits, not trailers)`);
+  return dim(`  (via declared targets, not commits)`);
 }

@@ -1,1 +1,2 @@
+# cairns:attributes
 .tasks/**/log.ndjson merge=union

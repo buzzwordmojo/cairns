@@ -10,7 +10,7 @@ import {
 import { join } from "node:path";
 import type { Board } from "./board.js";
 
-export const HOOK_VERSION = 1;
+export const HOOK_VERSION = 2;
 const MARKER = `# cairns:hook v${HOOK_VERSION}`;
 
 export const HOOK_NAMES = ["prepare-commit-msg", "post-commit"] as const;
@@ -22,14 +22,40 @@ export type HookName = (typeof HOOK_NAMES)[number];
  */
 const PREPARE_COMMIT_MSG = `#!/bin/sh
 ${MARKER}
-# Appends a "Task: <id>" trailer while a cairns task is active.
+# Appends a "Task: <id>" trailer so the task-to-code link stays a git query.
 case "$2" in merge|squash) exit 0 ;; esac
 [ -n "$CAIRNS_NO_TRAILER" ] && exit 0
 root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+
+id=""
 active="$root/.tasks/.active"
-[ -f "$active" ] || exit 0
-id=$(tr -d ' \\t\\r\\n' < "$active")
-[ -n "$id" ] || exit 0
+[ -f "$active" ] && id=$(tr -d ' \\t\\r\\n' < "$active")
+
+# Falling back to the branch name costs nothing for anyone who branches per task.
+# An explicit start still wins, and a candidate without a task directory is
+# discarded — otherwise a branch like hotfix-t-shirt-sizing links to nothing.
+if [ -z "$id" ]; then
+  branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null) || branch=""
+  guess=$(printf '%s' "$branch" | grep -oE '(^|[/_.-])t-[0-9a-z]{1,32}' | head -n 1 | sed 's/^[^t]//')
+  if [ -n "$guess" ] && [ -d "$root/.tasks/$guess" ]; then id="$guess"; fi
+fi
+
+# The silent skip is what loses the link: hooks install, work gets committed, and
+# the index is still empty weeks later with nothing ever having said so. Warn on
+# a message a human is composing; stay quiet through amend, rebase and
+# cherry-pick, where the message is replayed rather than written.
+if [ -z "$id" ]; then
+  if [ -z "$CAIRNS_QUIET" ]; then
+    case "$2" in
+      ""|message|template)
+        echo "cairns: no active task — this commit will not link to one." >&2
+        echo "        fix: cairn start <id>   silence: CAIRNS_QUIET=1" >&2
+        ;;
+    esac
+  fi
+  exit 0
+fi
+
 grep -qi "^Task: $id\\$" "$1" 2>/dev/null && exit 0
 printf '\\nTask: %s\\n' "$id" >> "$1"
 exit 0

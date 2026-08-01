@@ -6,12 +6,13 @@ import { add } from "./commands/add.js";
 import { context } from "./commands/context.js";
 import { edit } from "./commands/edit.js";
 import { init } from "./commands/init.js";
+import { link } from "./commands/link.js";
 import { answer, ask, log } from "./commands/log.js";
 import { list, logOnly, reindex, relatedCmd, search, show } from "./commands/retrieve.js";
 import { done, start, stop } from "./commands/status.js";
 import { uninstall } from "./commands/uninstall.js";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.0.1";
 
 type Handler = (args: ReturnType<typeof parseArgs>) => number | Promise<number>;
 
@@ -34,6 +35,7 @@ const COMMANDS: Record<string, Handler> = {
   list,
   ls: list,
   edit,
+  link,
   reindex,
   board: boardTui,
 };
@@ -65,6 +67,7 @@ ${bold("record")}
 ${bold("retrieve")}
   cairn search <term>            ranked across logs and closed tasks
   cairn related <path>           what to know before editing this file
+  cairn link <id> <rev>…         recover the file list from commits that missed the trailer
   cairn show <id>                full task including log
   cairn history <id>             log only
   cairn board                    interactive board

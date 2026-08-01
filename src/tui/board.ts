@@ -260,6 +260,7 @@ class BoardApp implements App {
         out.push(index === this.cursor ? highlight(head, width) : head);
         index++;
         if (row.method === "targets") out.push(dim("     (via declared targets, not commits)"));
+        if (row.method === "linked") out.push(dim("     (via backfilled commits, not trailers)"));
         for (const f of row.findings) {
           out.push(dim(`     ${kindLabel(f.kind)}: `) + truncate(f.text, Math.max(20, width - 20)));
           if (f.mechanism) out.push(dim(`       mechanism: ${f.mechanism}`));
