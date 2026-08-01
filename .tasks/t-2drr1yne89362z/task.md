@@ -2,9 +2,10 @@
 version: 1
 id: t-2drr1yne89362z
 title: Stop losing task-to-code links when no task is active at commit time
-status: doing
+status: done
 created: 2026-08-01
 updated: 2026-08-01
+closed: 2026-08-01
 targets: [src/lib/githooks.ts, src/lib/task.ts, src/lib/related.ts, src/commands/link.ts, src/commands/retrieve.ts, src/cli.ts]
 ---
 
@@ -23,26 +24,10 @@ targets: [src/lib/githooks.ts, src/lib/task.ts, src/lib/related.ts, src/commands
 
 <!-- cairns:context:begin -->
 ## Context
-matchbook installed the hooks at 10:51:53, committed 0f7b065 at 11:11 and bcb358f
-at 11:46, and neither commit carries a Task: trailer. The hook was live the whole
-time. It reads .tasks/.active and exits 0 when that file is empty, which it was
-until cairn start first ran at 14:31. So the index stayed at
-{head:"",paths:{},tasks:{}} and the reverse lookup the whole memory thesis rests
-on had never actually run against real data.
-
-The order that produced this is the normal adoption order — init, commit the
-adoption, keep working, discover start later. Any repo that follows it loses the
-link for exactly the early history worth linking.
-
-Three fixes, in increasing order of how much they infer:
-  1. make the skip audible instead of silent
-  2. read the id off the branch name when nothing is active
-  3. cairn link, to recover commits already made
-
-On (3): trailers cannot be added to existing commits without rewriting history,
-so the files have to be recorded somewhere else. They must not go into targets:.
-related.ts documents targets as "intent, written at creation, never merged with
-touched, which git derives" — folding backfilled paths in would launder derived
-data into the declared channel and make the existing "via declared targets"
-label a lie. A third provenance instead, labelled as itself.
+(compacted on close — full text is in the log)
 <!-- cairns:context:end -->
+
+<!-- cairns:outcome:begin -->
+## Outcome
+The trailer hook now fails loudly instead of silently: it reads .tasks/.active, falls back to a task id in the branch name (discarding any candidate without a task directory, so hotfix-t-shirt-sizing links to nothing), and prints a two-line stderr notice naming the fix when it finds neither. It stays silent while git replays a message, which needs the sequencer state files because rebase and cherry-pick both report $2 as 'message' exactly like commit -m. cairn link <id> <rev-or-range> backfills commits that missed the trailer into a separate 'linked:' frontmatter key, reported by related as '(via backfilled commits, not trailers)' — kept apart from both targets and the trailer index so no label claims provenance it does not have. Two defects surfaced while building it: diff-tree needs --root or the first commit of a repo backfills nothing, and installOne dropped the chain when upgrading a chained hook, which silently disabled a third-party post-commit hook on app.hermen.io until it was fixed and restored. HOOK_VERSION is 2; every repo running cairns needs cairn init --hooks. 95 tests.
+<!-- cairns:outcome:end -->
