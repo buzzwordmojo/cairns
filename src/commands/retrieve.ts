@@ -65,7 +65,8 @@ export function relatedCmd(args: Args): number {
   }
 
   if (r.open.length) {
-    console.log(`${r.open.length} open task${r.open.length === 1 ? "" : "s"} target this path: ${r.open.map((o) => o.task.id).join(", ")}`);
+    const one = r.open.length === 1;
+    console.log(`${r.open.length} open task${one ? "" : "s"} ${one ? "touches" : "touch"} this path: ${r.open.map((o) => o.task.id).join(", ")}`);
   }
 
   if (r.empty) {
