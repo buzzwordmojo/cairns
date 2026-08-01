@@ -42,10 +42,16 @@ fi
 
 # The silent skip is what loses the link: hooks install, work gets committed, and
 # the index is still empty weeks later with nothing ever having said so. Warn on
-# a message a human is composing; stay quiet through amend, rebase and
-# cherry-pick, where the message is replayed rather than written.
-if [ -z "$id" ]; then
-  if [ -z "$CAIRNS_QUIET" ]; then
+# a message a human is composing, and stay quiet where one is being replayed.
+# Rebase and cherry-pick both report "$2" as "message", exactly like git commit
+# -m, so the sequencer state is the only thing that tells them apart.
+if [ -z "$id" ] && [ -z "$CAIRNS_QUIET" ]; then
+  gd=$(git rev-parse --git-dir 2>/dev/null) || gd=""
+  replaying=""
+  for f in rebase-merge rebase-apply CHERRY_PICK_HEAD REVERT_HEAD MERGE_HEAD; do
+    [ -e "$gd/$f" ] && replaying=1
+  done
+  if [ -z "$replaying" ]; then
     case "$2" in
       ""|message|template)
         echo "cairns: no active task — this commit will not link to one." >&2
@@ -53,8 +59,8 @@ if [ -z "$id" ]; then
         ;;
     esac
   fi
-  exit 0
 fi
+[ -n "$id" ] || exit 0
 
 grep -qi "^Task: $id\\$" "$1" 2>/dev/null && exit 0
 printf '\\nTask: %s\\n' "$id" >> "$1"

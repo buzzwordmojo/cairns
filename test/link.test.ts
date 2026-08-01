@@ -96,6 +96,20 @@ describe("prepare-commit-msg", () => {
     expect(out).toBe("");
   });
 
+  test("stays quiet where a message is replayed rather than written", () => {
+    const board = repo();
+    commit(board, "src/a.ts", "one");
+    commit(board, "src/b.ts", "two");
+    // rebase and cherry-pick both report "$2" as "message", exactly like -m.
+    const sh = (cmd: string) =>
+      execFileSync("sh", ["-c", `${cmd} 2>&1 1>/dev/null`], {
+        cwd: board.root,
+        encoding: "utf8",
+      });
+    expect(sh("git commit --amend --no-edit")).not.toContain("cairns:");
+    expect(sh("git rebase --force-rebase HEAD~1")).not.toContain("cairns:");
+  });
+
   test("an active task stamps the trailer", () => {
     const board = repo();
     const t = createTask(board, { title: "active" });
