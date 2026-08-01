@@ -2,7 +2,9 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { appendFileSync } from "node:fs";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { log as logCmd } from "../src/commands/log.js";
 import { logPath } from "../src/lib/board.js";
+import { createTask } from "../src/lib/task.js";
 import {
   appendLog,
   openQuestionEntries,
@@ -112,5 +114,62 @@ describe("log file", () => {
     expect(line).toContain("t-1");
     expect(line).toContain(e.id);
     expect(line).toContain("dead end");
+  });
+});
+
+describe("the log command refuses ambiguous input", () => {
+  /** Silences the usage output so a refusal test does not spam the run. */
+  function quietly<T>(fn: () => T): T {
+    const err = console.error;
+    console.error = () => {};
+    try {
+      return fn();
+    } finally {
+      console.error = err;
+    }
+  }
+
+  function inBoard<T>(fn: (board: ReturnType<typeof tempBoard>) => T): T {
+    const board = tempBoard();
+    const cwd = process.cwd();
+    process.chdir(board.root);
+    try {
+      return fn(board);
+    } finally {
+      process.chdir(cwd);
+    }
+  }
+
+  test("stray words after the id are refused, not folded into the message", () => {
+    // An unquoted shell variable used to prepend its extra words to the text and
+    // record it as a note. The log is append-only, so that corruption is forever.
+    inBoard((board) => {
+      const t = createTask(board, { title: "Crest art" });
+      const code = quietly(() =>
+        logCmd({ positional: [t.id, "stray", "words", "note: the real message"], flags: {} }),
+      );
+      expect(code).toBe(2);
+      expect(readLog(board, t.id).length).toBe(0);
+    });
+  });
+
+  test("a single quoted message is still accepted", () => {
+    inBoard((board) => {
+      const t = createTask(board, { title: "Crest art" });
+      const code = quietly(() =>
+        logCmd({ positional: [t.id, "dead end: the bulldog read as a bear because of the muzzle"], flags: {} }),
+      );
+      expect(code).toBe(0);
+      expect(readLog(board, t.id).length).toBe(1);
+    });
+  });
+
+  test("a bare id with no message is refused", () => {
+    inBoard((board) => {
+      const t = createTask(board, { title: "Crest art" });
+      const code = quietly(() => logCmd({ positional: [t.id], flags: {} }));
+      expect(code).toBe(2);
+      expect(readLog(board, t.id).length).toBe(0);
+    });
   });
 });

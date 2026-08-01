@@ -51,9 +51,8 @@ export function relatedCmd(args: Args): number {
   const r = related(board, path, { rebuild: flagBool(args, "rebuild", false) });
   console.log(`${bold(r.path)}\n`);
 
-  for (const row of [...r.closed]) {
-    const when = row.task.closed ?? row.task.updated;
-    console.log(`${bold(row.task.id)} ${dim(`closed ${when}`)}  ${row.task.title}${methodTag(row.method)}`);
+  const render = (row: (typeof r.closed)[number], label: string) => {
+    console.log(`${bold(row.task.id)} ${dim(label)}  ${row.task.title}${methodTag(row.method)}`);
     for (const f of row.findings) {
       const icon = f.kind === "dead-end" ? yellow("⚠ dead end") : dim(f.kind);
       console.log(`  ${icon}: ${truncate(f.text, 78)}`);
@@ -62,12 +61,13 @@ export function relatedCmd(args: Args): number {
     }
     if (row.findings.length === 0) console.log(dim(`  (no findings recorded)`));
     console.log("");
-  }
+  };
 
-  if (r.open.length) {
-    const one = r.open.length === 1;
-    console.log(`${r.open.length} open task${one ? "" : "s"} ${one ? "touches" : "touch"} this path: ${r.open.map((o) => o.task.id).join(", ")}`);
-  }
+  // Open work comes first and shows its findings in full. A dead end recorded
+  // against a task still in flight is the one most likely to be repeated by
+  // whoever is about to edit this file — including the person who recorded it.
+  for (const row of r.open) render(row, row.task.status === "doing" ? "in progress" : "open");
+  for (const row of r.closed) render(row, `closed ${row.task.closed ?? row.task.updated}`);
 
   if (r.empty) {
     console.log(dim(`no tasks recorded against this path.`));

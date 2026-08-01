@@ -130,4 +130,19 @@ describe("related", () => {
     expect(related(board, "src/").closed[0]?.task.id).toBe(task.id);
     expect(related(board, "src").closed[0]?.task.id).toBe(task.id);
   });
+
+  test("an open task carries its findings, not just its id", () => {
+    // The dead end most likely to be repeated belongs to work still in flight.
+    const board = tempBoard();
+    const t = createTask(board, { title: "Crest art", targets: ["scripts/crest.ts"] });
+    appendLog(board, t.id, {
+      author: "agent",
+      kind: "dead-end",
+      text: "the bulldog render read as a bear",
+      mechanism: "the muzzle and brow silhouette match a bear at crest scale",
+    });
+    const row = related(board, "scripts/crest.ts").open[0];
+    expect(row?.task.id).toBe(t.id);
+    expect(row?.findings[0]?.text).toBe("the bulldog render read as a bear");
+  });
 });

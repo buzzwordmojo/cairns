@@ -20,11 +20,29 @@ export function log(args: Args): number {
   const [first, ...rest] = args.positional;
   const looksLikeId = first !== undefined && normalizeTaskId(first) !== null && rest.length > 0;
   const idArg = looksLikeId ? first : undefined;
-  const text = (looksLikeId ? rest : args.positional).join(" ").trim();
+  const words = looksLikeId ? rest : args.positional;
+
+  // The message must arrive as one argument. Joining stray words instead would
+  // absorb a shell-quoting slip into the text and record it as a plausible but
+  // wrong entry, and the log is append-only, so that corruption is permanent.
+  if (words.length > 1) {
+    console.error(`${red("refused")} — the message must be a single quoted argument.`);
+    console.error(dim(`  got ${words.length} arguments: ${words.map((w) => JSON.stringify(w)).join(" ")}`));
+    console.error(`\nusage: cairn log [<id>] "<kind>: <what> because <why>"`);
+    return 2;
+  }
+
+  const text = (words[0] ?? "").trim();
 
   if (!text) {
     console.error(`usage: cairn log [<id>] "<kind>: <what> because <why>"`);
     console.error(dim(`  kinds: decided, dead end, note, question, answer, supersedes <log-id>`));
+    return 2;
+  }
+
+  // A bare id with no message is a slip, not a note that happens to read as one.
+  if (!idArg && normalizeTaskId(text) !== null) {
+    console.error(`usage: cairn log ${text} "<kind>: <what> because <why>"`);
     return 2;
   }
 
