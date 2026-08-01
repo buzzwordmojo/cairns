@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parseArgs } from "../src/lib/args.js";
 import { type Board, locate, writeActive } from "../src/lib/board.js";
@@ -207,5 +207,25 @@ describe("cairn link", () => {
     expect(reread.linked).toContain("src/two.ts");
     expect(reread.linked).toContain("src/three.ts");
     expect(reread.linked).not.toContain("src/one.ts");
+  });
+});
+
+describe("hook upgrades", () => {
+  test("a chained hook stays chained when the body changes", () => {
+    const board = tempBoard();
+    execFileSync("git", ["init", "-q"], { cwd: board.root });
+    const located = locate(board.root);
+    const path = join(located.gitDir!, "hooks", "post-commit");
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, "#!/bin/sh\necho someone elses hook\n");
+
+    expect(installHooks(located).find((h) => h.name === "post-commit")!.result).toBe("chained");
+    // Simulate an older cairns body so the upgrade path runs.
+    writeFileSync(path, readFileSync(path, "utf8").replace("Best effort", "Best-effort"));
+
+    const again = installHooks(located).find((h) => h.name === "post-commit")!;
+    expect(again.result).toBe("chained");
+    // The backup must still be invoked, not merely left on disk.
+    expect(readFileSync(path, "utf8")).toContain("$0.pre-cairns");
   });
 });

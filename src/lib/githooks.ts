@@ -99,26 +99,31 @@ function installOne(dir: string, name: HookName): HookStatus {
     return { name, result: "created", path };
   }
 
+  const backup = `${path}.pre-cairns`;
   const current = readFileSync(path, "utf8");
   if (current.includes("cairns:hook")) {
-    if (current === body) return { name, result: "unchanged", path };
-    write(path, body);
-    return { name, result: "updated", path };
+    // Upgrading a chained hook has to stay chained. Writing the plain body would
+    // leave the backup on disk and nothing calling it — someone else's hook
+    // silently stops running, which is the worst way for an upgrade to fail.
+    const wanted = existsSync(backup) ? chained(body) : body;
+    if (current === wanted) return { name, result: "unchanged", path };
+    write(path, wanted);
+    return { name, result: existsSync(backup) ? "chained" : "updated", path };
   }
 
   // Someone else's hook already lives here. Preserve it and run it first rather
   // than clobbering it or refusing to install.
-  const backup = `${path}.pre-cairns`;
   renameSync(path, backup);
-  write(
-    path,
-    `#!/bin/sh
+  write(path, chained(body));
+  return { name, result: "chained", path };
+}
+
+function chained(body: string): string {
+  return `#!/bin/sh
 ${MARKER}
 # Chains a pre-existing hook that was here before cairns.
 if [ -x "$0.pre-cairns" ]; then "$0.pre-cairns" "$@" || exit $?; fi
-${body.split("\n").slice(2).join("\n")}`,
-  );
-  return { name, result: "chained", path };
+${body.split("\n").slice(2).join("\n")}`;
 }
 
 function write(path: string, body: string): void {
