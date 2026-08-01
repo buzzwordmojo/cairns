@@ -1,0 +1,39 @@
+{
+  "name": "cairns",
+  "version": "0.0.0",
+  "description": "A repo-native task board that doubles as memory for coding agents",
+  "type": "module",
+  "license": "MIT",
+  "author": "Bob Mattax <bob@buzzwordmojo.com>",
+  "keywords": [
+    "tasks",
+    "backlog",
+    "project-management",
+    "agents",
+    "ai",
+    "cli",
+    "markdown",
+    "git"
+  ],
+  "bin": {
+    "cairn": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "bun build src/cli.ts --outdir dist --target node",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.6.0"
+  }
+}

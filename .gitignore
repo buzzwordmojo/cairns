@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# derived state — never committed, or the board invents merge conflicts
+.tasks/.index
+.tasks/.cache/
+
+.env
+.env.*
+.DS_Store
+*.log
