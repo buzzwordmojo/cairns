@@ -1,0 +1,4 @@
+# derived state — never committed, or the board invents merge conflicts
+.active
+.index/
+.cache/

@@ -5,8 +5,8 @@ A repo-native task board that doubles as memory for coding agents.
 A cairn is a stack of stones left on a route so the next person through knows the
 way — including where the trail does not go.
 
-> Status: design stage. `DESIGN.md` is complete, no code has been written yet.
-> Nothing here is installable.
+> Status: v0.1.0. The CLI and the interactive board work end to end. Not yet
+> published to npm.
 
 ## The idea
 
@@ -22,15 +22,19 @@ The payoff looks like this:
 
 ```
 $ cairn related src/middleware.ts
+src/middleware.ts
 
-t-042 closed 2026-08-04  Replace session cookie with JWT
-  ⚠ dead end: auth cannot run here — middleware executes after the
-    response flushes.  log-2, 2026-08-01
-t-039 closed 2026-06-11  KMS key rotation
-  note: rotation tooling assumes the key alias, not the key id.
-
-2 open tasks target this file: t-051, t-055
+t-2dq51jfb8z closed 2026-08-01  Replace session cookie with JWT
+  outcome: JWT signed with the existing KMS key; verification moved out of
+    middleware into the route handler.
+  ⚠ dead end: middleware-based verification broke SSR streaming because
+    middleware runs after the response flushes
+  ⚠ dead end: JWT verification fails intermittently under load
+    mechanism: unknown
 ```
+
+When nothing matches, it says so out loud — and, if the commit hooks are missing
+from your clone, it tells you the result means "unknown" rather than "nothing".
 
 An agent about to edit that file gets the specific dead end that cost you an
 afternoon. No hosted tracker can do that, because it does not live in your repo.
@@ -41,16 +45,65 @@ Findings are recorded as mechanisms, not verdicts. "Middleware runs after the
 response flushes" can be rechecked; "middleware doesn't work" goes stale
 invisibly.
 
-Live truth is separated from evidence. A short, capped, human-owned constraints
-block is loaded every session. The append-only log is never auto-loaded — it is
-searched on purpose, because a stale claim injected into context gets treated as
-current fact.
+Live truth is separated from evidence. A short, capped notes block is loaded every
+session. The append-only log is never auto-loaded — it is searched on purpose,
+because a stale claim injected into context gets treated as current fact. Notes
+are hand-written and unverified, and nothing tells a model to trust them over its
+own reading of the code.
 
 Links to code are derived from git rather than maintained by hand, via a commit
 trailer written by a hook you never think about.
 
 Context cost is fixed and small. Everything that loads by default is capped, so
 the board does not get more expensive as the backlog grows.
+
+## Install
+
+Not published yet. From a clone:
+
+```sh
+bun install
+bun run build
+node dist/cli.js --help
+```
+
+## Use
+
+```sh
+cairn init                     # create .tasks/, install hooks, write the protocol
+cairn context                  # the fixed session-start load — run this first
+cairn add "<thought>"          # two-second capture
+
+cairn start <id>               # commits now carry a `Task:` trailer
+cairn log "decided: <what> because <why>"
+cairn log "dead end: <what failed> because <mechanism>"
+cairn ask "<question>"         # surfaces in context until answered
+cairn done <id> --outcome "…"  # refuses to close without one
+
+cairn search <term>            # ranked across logs and closed tasks
+cairn related <path>           # what to know before editing this file
+cairn board                    # interactive board
+```
+
+A `decided` or `dead end` entry is refused unless it carries a mechanism. If you
+genuinely do not know it, `--mechanism unknown --evidence "<pasted error>"` is
+accepted — honest vagueness beats a confident guess.
+
+## The board
+
+`cairn board` is a zero-dependency terminal UI over the same files.
+
+```
+cairns /repo                                              ▶ t-2dq51jhn9d
+──────────────────────────────────────────────────────────────────────────
+ ▶ t-2dq51jhn9d  KMS key rotation                                      1·
+ ○ t-2dq5kjbznn  Audit token expiry handling
+ ✓ t-2dq51jfb8z  Replace session cookie with JWT                2✗ 1? 5·
+```
+
+`n` new · `s` start · `e` log · `E` edit in `$EDITOR` · `D` close · `/` search ·
+`r` related · `?` help. The badges count dead ends, open questions and log
+entries. The mechanism rule is enforced here too.
 
 ## Not this
 
@@ -60,10 +113,25 @@ plans already land.
 
 ## Design
 
-`DESIGN.md` is the full specification: file format, the constraints-versus-log
-split and its promotion gate, context budget and retrieval rules, plan staleness
-and archival, code linking, the agent protocol, MVP scope, and the ideas that were
-explicitly rejected.
+`DESIGN.md` is the full specification: file format, the notes-versus-log split,
+context budget and retrieval rules, plan staleness and archival, code linking, the
+agent protocol, MVP scope, and the ideas that were explicitly rejected.
+
+Some load-bearing choices:
+
+- **Ids are time-ordered random tokens**, not ordinals. Two agents capturing a
+  task in the same second must not be able to allocate the same id and have git
+  merge one over the other.
+- **The log is append-only NDJSON** with `merge=union`, so concurrent writers
+  produce the union of both sets rather than a conflict.
+- **The frontmatter parser never throws.** An absent field is a default, and
+  unknown fields survive a rewrite byte-for-byte — an older binary must not eat a
+  newer field.
+- **The index is a cache, never a source of truth.** It is gitignored, and every
+  query returns the same answer without it, just slower.
+- **`cairn context` degrades instead of failing.** It truncates to a budget and
+  always exits zero, because a session-start command that errors leaves the agent
+  with no context at all.
 
 ## License
 
