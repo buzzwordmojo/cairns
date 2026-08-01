@@ -29,7 +29,8 @@
   "scripts": {
     "build": "bun build src/cli.ts --outdir dist --target node",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "bun run typecheck && bun test && bun run build"
   },
   "dependencies": {},
   "devDependencies": {
