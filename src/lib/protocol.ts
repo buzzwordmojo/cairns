@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Board } from "./board.js";
 
@@ -103,6 +103,30 @@ export function installProtocol(board: Board, file = targetFile(board)): Protoco
   const next = prefix ? `${prefix}\n\n${block()}\n` : `${block()}\n`;
   writeFileSync(file, next);
   return { file, result: existing ? "updated" : "created", previousVersion };
+}
+
+/**
+ * Removes only the marked region. The surrounding file is almost always
+ * hand-written instructions that predate cairns, so a whole-file delete would
+ * destroy the thing the block was appended to.
+ */
+export function removeProtocol(board: Board): { file: string; removed: boolean } {
+  for (const name of ["AGENTS.md", "CLAUDE.md"]) {
+    const file = join(board.root, name);
+    if (!existsSync(file)) continue;
+    const existing = readFileSync(file, "utf8");
+    const start = existing.indexOf(BEGIN);
+    const endIdx = existing.indexOf(END);
+    if (start < 0 || endIdx < start) continue;
+
+    const rest = existing.slice(0, start).replace(/\s+$/, "") + existing.slice(endIdx + END.length);
+    const body = rest.replace(/\s+$/, "");
+    // A file that held nothing but the block was ours to begin with.
+    if (body) writeFileSync(file, `${body}\n`);
+    else unlinkSync(file);
+    return { file, removed: true };
+  }
+  return { file: targetFile(board), removed: false };
 }
 
 /** Read the marker rather than only writing it — warn when the block is stale. */

@@ -89,6 +89,26 @@ A `decided` or `dead end` entry is refused unless it carries a mechanism. If you
 genuinely do not know it, `--mechanism unknown --evidence "<pasted error>"` is
 accepted — honest vagueness beats a confident guess.
 
+### Getting back out
+
+`cairn init` writes into files you own, so everything it writes is marked:
+
+| File | Marker |
+|---|---|
+| `CLAUDE.md` / `AGENTS.md` | `<!-- cairns:begin v1 -->` … `<!-- cairns:end -->` |
+| `.git/hooks/*` | `# cairns:hook v1` |
+| `.gitattributes` | `# cairns:attributes` |
+
+```sh
+cairn uninstall            # drops the marked blocks; the board stays
+cairn uninstall --purge    # also deletes .tasks/
+```
+
+Removal is surgical: your own rules in those files are left alone, a hook that
+cairns chained is restored from its `.pre-cairns` backup, and a hook without the
+marker is reported and never touched. `.tasks/` survives by default because the
+board is the accumulated memory, not the plumbing.
+
 ## The board
 
 `cairn board` is a zero-dependency terminal UI over the same files.

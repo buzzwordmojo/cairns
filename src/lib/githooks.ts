@@ -1,4 +1,12 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import type { Board } from "./board.js";
 
@@ -105,6 +113,9 @@ export function hooksInstalled(board: Board): boolean {
 }
 
 const GITATTRIBUTES_LINE = ".tasks/**/log.ndjson merge=union";
+/** Marked like every other artifact, so removing cairns is a mechanical edit. */
+const GITATTRIBUTES_MARKER = "# cairns:attributes";
+const GITATTRIBUTES_BLOCK = `${GITATTRIBUTES_MARKER}\n${GITATTRIBUTES_LINE}`;
 
 /**
  * Union merge is what makes two agents in separate worktrees appending
@@ -113,8 +124,53 @@ const GITATTRIBUTES_LINE = ".tasks/**/log.ndjson merge=union";
 export function installMergeDriver(board: Board): "created" | "updated" | "unchanged" {
   const p = join(board.root, ".gitattributes");
   const existing = existsSync(p) ? readFileSync(p, "utf8") : "";
-  if (existing.includes(GITATTRIBUTES_LINE)) return "unchanged";
-  const next = existing.replace(/\s*$/, "") ;
-  writeFileSync(p, next ? `${next}\n${GITATTRIBUTES_LINE}\n` : `${GITATTRIBUTES_LINE}\n`);
+  if (existing.includes(GITATTRIBUTES_MARKER)) return "unchanged";
+  // An unmarked line from an older install still counts; mark it in place.
+  const stripped = existing
+    .split("\n")
+    .filter((l) => l.trim() !== GITATTRIBUTES_LINE)
+    .join("\n")
+    .replace(/\s*$/, "");
+  writeFileSync(p, stripped ? `${stripped}\n\n${GITATTRIBUTES_BLOCK}\n` : `${GITATTRIBUTES_BLOCK}\n`);
   return existing ? "updated" : "created";
+}
+
+/** Drops the marked block and leaves every other rule untouched. */
+export function removeMergeDriver(board: Board): boolean {
+  const p = join(board.root, ".gitattributes");
+  if (!existsSync(p)) return false;
+  const lines = readFileSync(p, "utf8").split("\n");
+  const kept = lines.filter(
+    (l) => l.trim() !== GITATTRIBUTES_MARKER && l.trim() !== GITATTRIBUTES_LINE,
+  );
+  if (kept.length === lines.length) return false;
+  const body = kept.join("\n").replace(/\s*$/, "");
+  if (body) writeFileSync(p, `${body}\n`);
+  else unlinkSync(p);
+  return true;
+}
+
+export type HookRemoval = { name: HookName; result: "removed" | "restored" | "absent" | "foreign" };
+
+/**
+ * Only removes hooks cairns actually wrote. A hook without the marker belongs to
+ * someone else, and silently deleting it would be a far worse failure than
+ * leaving a stale one behind.
+ */
+export function removeHooks(board: Board): HookRemoval[] {
+  if (!board.gitDir) return HOOK_NAMES.map((name) => ({ name, result: "absent" as const }));
+  return HOOK_NAMES.map((name) => {
+    const path = join(board.gitDir!, "hooks", name);
+    if (!existsSync(path)) return { name, result: "absent" as const };
+    if (!readFileSync(path, "utf8").includes("cairns:hook")) {
+      return { name, result: "foreign" as const };
+    }
+    const backup = `${path}.pre-cairns`;
+    if (existsSync(backup)) {
+      renameSync(backup, path);
+      return { name, result: "restored" as const };
+    }
+    unlinkSync(path);
+    return { name, result: "removed" as const };
+  });
 }
