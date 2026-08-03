@@ -651,8 +651,15 @@ Constraint-dependency tracking on plans, so superseding a constraint flags every
 plan that assumed it. The most precise staleness signal available and the most
 ceremony; git drift catches most of the same cases for free.
 
-Terminal board rendering, and a generated markdown table embeddable in a README so
-the board renders on a git host.
+~~Terminal board rendering, and a generated markdown table embeddable in a README
+so the board renders on a git host.~~ Both shipped — `cairn board` and `cairn
+render`. The second one puts a derived file in git, against the constraint above,
+so it earns its keep by being un-mergeable by diff rather than by being
+gitignored: `.gitattributes` sends it to a driver that keeps one side instead of
+conflicting, the `post-merge` hook re-renders once the working tree is whole, and
+`cairn render --check` is what makes staleness a CI failure rather than a
+surprise. Regenerating inside the merge driver does not work — see the dead end
+recorded on that task.
 
 Automatic staleness sweeps that recheck constraints against lockfile versions on a
 schedule rather than at read time.

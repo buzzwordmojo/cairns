@@ -1,2 +1,5 @@
-# cairns:attributes
+# cairns:attributes v2
 .tasks/**/log.ndjson merge=union
+.tasks/**/log.ndjson linguist-generated=true
+.tasks/README.md merge=cairns-board
+.tasks/README.md linguist-generated=true

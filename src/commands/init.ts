@@ -3,8 +3,9 @@ import { join, relative } from "node:path";
 import type { Args } from "../lib/args.js";
 import { flagBool } from "../lib/args.js";
 import { BOARD_DIR, locate, notesPath } from "../lib/board.js";
-import { installHooks, installMergeDriver } from "../lib/githooks.js";
+import { installBoardDriver, installHooks, installMergeDriver } from "../lib/githooks.js";
 import { installProtocol, targetFile } from "../lib/protocol.js";
+import { RENDER_FILE, renderBoard } from "../lib/render.js";
 import { bold, cyan, dim, green, yellow } from "../lib/ui.js";
 
 const BOARD_GITIGNORE = `# derived state — never committed, or the board invents merge conflicts
@@ -46,9 +47,22 @@ export function init(args: Args): number {
       console.log(`${label}  .git/hooks/${h.name}`);
     }
     const attrs = installMergeDriver(board);
-    console.log(`${attrs === "unchanged" ? dim("exists ") : green(attrs.padEnd(7))}  .gitattributes (log merge=union)`);
+    console.log(
+      `${attrs === "unchanged" ? dim("exists ") : green(attrs.padEnd(7))}  .gitattributes (log merges by union, board page never conflicts)`,
+    );
+    installBoardDriver(board);
   } else {
     console.log(`${yellow("skipped")}  git hooks (--no-hooks)`);
+  }
+
+  if (flagBool(args, "render", true)) {
+    const page = join(board.dir, RENDER_FILE);
+    const before = existsSync(page) ? readFileSync(page, "utf8") : null;
+    const body = renderBoard(board);
+    if (before !== body) writeFileSync(page, body);
+    const label =
+      before === body ? dim("exists ") : green((before === null ? "created" : "updated").padEnd(7));
+    console.log(`${label}  ${BOARD_DIR}/${RENDER_FILE} (the board, rendered for a git host)`);
   }
 
   if (flagBool(args, "protocol", true)) {

@@ -8,6 +8,7 @@ import { edit } from "./commands/edit.js";
 import { init } from "./commands/init.js";
 import { link } from "./commands/link.js";
 import { answer, ask, log } from "./commands/log.js";
+import { render } from "./commands/render.js";
 import { list, logOnly, reindex, relatedCmd, search, show } from "./commands/retrieve.js";
 import { done, start, stop } from "./commands/status.js";
 import { uninstall } from "./commands/uninstall.js";
@@ -37,6 +38,7 @@ const COMMANDS: Record<string, Handler> = {
   edit,
   link,
   reindex,
+  render,
   board: boardTui,
 };
 
@@ -71,6 +73,7 @@ ${bold("retrieve")}
   cairn show <id>                full task including log
   cairn history <id>             log only
   cairn board                    interactive board
+  cairn render [--check]         write .tasks/README.md, which renders on a git host
 
 ${dim("docs: https://github.com/buzzwordmojo/cairns")}`;
 

@@ -88,6 +88,7 @@ cairn search <term>            # ranked across logs and closed tasks
 cairn related <path>           # what to know before editing this file
 cairn link <id> <rev>…         # recover the file list from commits made without it
 cairn board                    # interactive board
+cairn render                   # write .tasks/README.md, which renders on a git host
 ```
 
 A `decided` or `dead end` entry is refused unless it carries a mechanism. If you
@@ -129,6 +130,32 @@ cairns /repo                                              ▶ t-2dq51jhn9d
 `n` new · `s` start · `e` log · `E` edit in `$EDITOR` · `D` close · `/` search ·
 `r` related · `?` help. The badges count dead ends, open questions and log
 entries. The mechanism rule is enforced here too.
+
+## On a git host
+
+`cairn render` writes `.tasks/README.md`, and a git host renders a directory's
+README under its file listing — so clicking `.tasks/` on GitHub shows the board
+with open work, open questions, recorded dead ends and closed outcomes, each id
+linking to its task file.
+
+It is the one derived file cairns commits, which takes some care:
+
+- The page is a pure function of `.tasks/`. No timestamp, no clock, nothing
+  asked of git — so every clone renders the same bytes and a diff means the
+  board actually changed.
+- `.gitattributes` routes it to a merge driver that keeps one side rather than
+  producing a conflict in a generated file, and the `post-merge` hook re-renders
+  once the working tree is whole. A merge driver cannot do that job itself: git
+  runs them before the rest of the merged tree lands, so it would render a tree
+  that is not there yet.
+- `cairn render --check` exits non-zero when the page is stale. That is the CI
+  form; a workflow that commits the page back races your own push.
+
+```sh
+cairn render                   # write it
+cairn render --check           # fail if stale
+cairn render --stdout          # pipe it somewhere else
+```
 
 ## Not this
 

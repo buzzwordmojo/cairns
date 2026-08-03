@@ -1,10 +1,11 @@
-import { rmSync } from "node:fs";
-import { relative } from "node:path";
+import { existsSync, rmSync } from "node:fs";
+import { join, relative } from "node:path";
 import type { Args } from "../lib/args.js";
 import { flagBool } from "../lib/args.js";
 import { BOARD_DIR, requireBoard } from "../lib/board.js";
-import { removeHooks, removeMergeDriver } from "../lib/githooks.js";
+import { removeBoardDriver, removeHooks, removeMergeDriver } from "../lib/githooks.js";
 import { removeProtocol } from "../lib/protocol.js";
+import { RENDER_FILE } from "../lib/render.js";
 import { bold, cyan, dim, green, yellow } from "../lib/ui.js";
 import { listTasks } from "../lib/task.js";
 
@@ -31,7 +32,18 @@ export function uninstall(args: Args): number {
   }
 
   const attrs = removeMergeDriver(board);
-  console.log(`${attrs ? green("removed ") : dim("absent  ")}  .gitattributes (log merge=union)`);
+  console.log(`${attrs ? green("removed ") : dim("absent  ")}  .gitattributes (cairns rules)`);
+  const driver = removeBoardDriver(board);
+  console.log(`${driver ? green("removed ") : dim("absent  ")}  git config merge.cairns-board`);
+
+  // Derived, but committed — so removing cairns has to remove it, or the repo
+  // keeps serving a board page that nothing regenerates.
+  const page = join(board.dir, RENDER_FILE);
+  const hadPage = existsSync(page);
+  if (hadPage) rmSync(page, { force: true });
+  console.log(
+    `${hadPage ? green("removed ") : dim("absent  ")}  ${BOARD_DIR}/${RENDER_FILE} (generated board page)`,
+  );
 
   const proto = removeProtocol(board);
   const protoRel = relative(board.root, proto.file) || proto.file;

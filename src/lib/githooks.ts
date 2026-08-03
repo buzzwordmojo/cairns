@@ -9,11 +9,12 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import type { Board } from "./board.js";
+import { git } from "./git.js";
 
-export const HOOK_VERSION = 2;
+export const HOOK_VERSION = 3;
 const MARKER = `# cairns:hook v${HOOK_VERSION}`;
 
-export const HOOK_NAMES = ["prepare-commit-msg", "post-commit"] as const;
+export const HOOK_NAMES = ["prepare-commit-msg", "post-commit", "post-merge"] as const;
 export type HookName = (typeof HOOK_NAMES)[number];
 
 /**
@@ -75,9 +76,30 @@ command -v cairn >/dev/null 2>&1 || exit 0
 exit 0
 `;
 
+/**
+ * The one moment the committed board page is guaranteed stale through nobody's
+ * action: both sides changed `.tasks/`, and the merge driver deliberately kept
+ * one side's page rather than inventing a merged one. This runs once the working
+ * directory is whole, which is the earliest point a correct render is possible.
+ */
+const POST_MERGE = `#!/bin/sh
+${MARKER}
+# Re-renders the board page after a merge. Announces itself, because it leaves a
+# modified file behind and a silent one would look like a dirty tree from nowhere.
+command -v cairn >/dev/null 2>&1 || exit 0
+root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+[ -d "$root/.tasks" ] || exit 0
+cairn render --check >/dev/null 2>&1 && exit 0
+if cairn render >/dev/null 2>&1; then
+  echo "cairns: re-rendered .tasks/README.md after the merge — commit it." >&2
+fi
+exit 0
+`;
+
 const BODIES: Record<HookName, string> = {
   "prepare-commit-msg": PREPARE_COMMIT_MSG,
   "post-commit": POST_COMMIT,
+  "post-merge": POST_MERGE,
 };
 
 export type HookResult = "created" | "updated" | "unchanged" | "chained" | "skipped";
@@ -149,39 +171,91 @@ export function hooksInstalled(board: Board): boolean {
   });
 }
 
-const GITATTRIBUTES_LINE = ".tasks/**/log.ndjson merge=union";
+export const ATTRIBUTES_VERSION = 2;
 /** Marked like every other artifact, so removing cairns is a mechanical edit. */
 const GITATTRIBUTES_MARKER = "# cairns:attributes";
-const GITATTRIBUTES_BLOCK = `${GITATTRIBUTES_MARKER}\n${GITATTRIBUTES_LINE}`;
+
+export const BOARD_MERGE_DRIVER = "cairns-board";
+
+const GITATTRIBUTES_LINES = [
+  ".tasks/**/log.ndjson merge=union",
+  ".tasks/**/log.ndjson linguist-generated=true",
+  `.tasks/README.md merge=${BOARD_MERGE_DRIVER}`,
+  ".tasks/README.md linguist-generated=true",
+];
+
+/** Every line any version of cairns has written here, so an upgrade can replace
+ * the whole block instead of appending a second one. */
+const RETIRED_LINES = [".tasks/**/log.ndjson merge=union"];
+
+const GITATTRIBUTES_BLOCK = `${GITATTRIBUTES_MARKER} v${ATTRIBUTES_VERSION}\n${GITATTRIBUTES_LINES.join("\n")}`;
+
+function stripBlock(text: string): string {
+  const known = new Set([...GITATTRIBUTES_LINES, ...RETIRED_LINES]);
+  return text
+    .split("\n")
+    .filter((l) => !l.trim().startsWith(GITATTRIBUTES_MARKER) && !known.has(l.trim()))
+    .join("\n")
+    .replace(/\s*$/, "");
+}
 
 /**
  * Union merge is what makes two agents in separate worktrees appending
- * concurrently produce both sets of lines instead of a conflict.
+ * concurrently produce both sets of lines instead of a conflict. The board page
+ * is derived, so it is never merged at all — the driver regenerates it.
+ *
+ * Versioned because the marker used to be an unconditional early return: an
+ * install that already had the v1 marker could never receive a rule added later.
  */
 export function installMergeDriver(board: Board): "created" | "updated" | "unchanged" {
   const p = join(board.root, ".gitattributes");
   const existing = existsSync(p) ? readFileSync(p, "utf8") : "";
-  if (existing.includes(GITATTRIBUTES_MARKER)) return "unchanged";
-  // An unmarked line from an older install still counts; mark it in place.
-  const stripped = existing
-    .split("\n")
-    .filter((l) => l.trim() !== GITATTRIBUTES_LINE)
-    .join("\n")
-    .replace(/\s*$/, "");
+  if (existing.includes(`${GITATTRIBUTES_MARKER} v${ATTRIBUTES_VERSION}`)) return "unchanged";
+  const stripped = stripBlock(existing);
   writeFileSync(p, stripped ? `${stripped}\n\n${GITATTRIBUTES_BLOCK}\n` : `${GITATTRIBUTES_BLOCK}\n`);
-  return existing ? "updated" : "created";
+  return existing.trim() ? "updated" : "created";
+}
+
+/**
+ * The board page is fully derived, so a three-way text merge of it is work with
+ * no upside — and asking a human to resolve a conflict in a generated file is
+ * worse than no upside. `true` exits zero leaving `%A` untouched, which takes
+ * our side: never a conflict, and never a half-merged page.
+ *
+ * It deliberately does not regenerate. Git runs merge drivers while merging file
+ * contents, before the rest of the merged tree reaches the working directory, so
+ * a driver that rendered would read a tree that is not there yet and produce a
+ * confidently wrong page. The post-merge hook regenerates instead, once the
+ * working directory is whole.
+ *
+ * Registered per clone, like the hooks. A clone that skipped `cairn init` has no
+ * driver by that name and git falls back to an ordinary conflict — visible, and
+ * fixed by running `cairn render`.
+ */
+export function installBoardDriver(board: Board): boolean {
+  if (!board.gitDir) return false;
+  const cfg = (key: string, value: string) =>
+    git(["config", `merge.${BOARD_MERGE_DRIVER}.${key}`, value], board.root, { write: true }).ok;
+  return (
+    cfg("name", "keep the generated cairns board page, then re-render it post-merge") &&
+    cfg("driver", "true")
+  );
+}
+
+export function removeBoardDriver(board: Board): boolean {
+  if (!board.gitDir) return false;
+  return git(["config", "--remove-section", `merge.${BOARD_MERGE_DRIVER}`], board.root, {
+    write: true,
+  }).ok;
 }
 
 /** Drops the marked block and leaves every other rule untouched. */
 export function removeMergeDriver(board: Board): boolean {
   const p = join(board.root, ".gitattributes");
   if (!existsSync(p)) return false;
-  const lines = readFileSync(p, "utf8").split("\n");
-  const kept = lines.filter(
-    (l) => l.trim() !== GITATTRIBUTES_MARKER && l.trim() !== GITATTRIBUTES_LINE,
-  );
-  if (kept.length === lines.length) return false;
-  const body = kept.join("\n").replace(/\s*$/, "");
+  const text = readFileSync(p, "utf8");
+  const body = stripBlock(text);
+  if (body === text.replace(/\s*$/, "")) return false;
   if (body) writeFileSync(p, `${body}\n`);
   else unlinkSync(p);
   return true;
