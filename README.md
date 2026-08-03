@@ -5,8 +5,12 @@ A repo-native task board that doubles as memory for coding agents.
 A cairn is a stack of stones left on a route so the next person through knows the
 way — including where the trail does not go.
 
-> Status: v0.0.1 — an early release. The CLI and the interactive board work end
-> to end, but the interface is still settling. Expect breaking changes.
+> Status: v0.0.2 — an early release. The CLI, the interactive board and the
+> rendered board page work end to end, but the interface is still settling.
+> Expect breaking changes.
+>
+> Upgrading from 0.0.1 needs `cairn init --hooks` in each repo: the hook set
+> gained `post-merge` and `.gitattributes` gained rules for the board page.
 
 ## The idea
 

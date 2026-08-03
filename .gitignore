@@ -10,3 +10,6 @@ dist/
 .env.*
 .DS_Store
 *.log
+
+# a publish token in the tree is one `git add -A` away from the registry
+npm-token*

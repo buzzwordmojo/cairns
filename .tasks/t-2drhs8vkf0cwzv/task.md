@@ -2,9 +2,9 @@
 version: 1
 id: t-2drhs8vkf0cwzv
 title: Publish cairns to npm
-status: open
+status: doing
 created: 2026-08-01
-updated: 2026-08-01
+updated: 2026-08-03
 targets: [package.json, src/cli.ts, README.md]
 ---
 
