@@ -1,4 +1,4 @@
-import { type Board, readActive } from "./board.js";
+import { type Board, TASK_FILE, TASKS_DIR, readActive } from "./board.js";
 import { type LogEntry, openQuestionEntries, readLog, supersededIds } from "./log.js";
 import { readProjectNotes } from "./notes.js";
 import { type Task, listTasks } from "./task.js";
@@ -43,7 +43,8 @@ function cell(s: string): string {
   return s.replace(/\s+/g, " ").replace(/\|/g, "\\|").trim();
 }
 
-const link = (id: string) => `[\`${id}\`](${id}/task.md)`;
+// Relative to `.tasks/`, where the page lives — so it carries the `tasks/` segment.
+const link = (id: string) => `[\`${id}\`](${TASKS_DIR}/${id}/${TASK_FILE})`;
 
 function table(rows: Row[]): string[] {
   const out = [

@@ -7,6 +7,7 @@ import { context } from "./commands/context.js";
 import { edit } from "./commands/edit.js";
 import { init } from "./commands/init.js";
 import { link } from "./commands/link.js";
+import { migrate } from "./commands/migrate.js";
 import { answer, ask, log } from "./commands/log.js";
 import { render } from "./commands/render.js";
 import { list, logOnly, reindex, relatedCmd, search, show } from "./commands/retrieve.js";
@@ -20,6 +21,7 @@ type Handler = (args: ReturnType<typeof parseArgs>) => number | Promise<number>;
 const COMMANDS: Record<string, Handler> = {
   init,
   uninstall,
+  migrate,
   add,
   context,
   ctx: context,
@@ -47,6 +49,7 @@ const HELP = `${bold("cairn")} — a repo-native task board that doubles as memo
 ${bold("setup")}
   cairn init                     create .tasks/, install hooks, write the agent protocol
   cairn uninstall [--purge]      remove everything init wrote; keeps .tasks/ unless --purge
+  cairn migrate [--dry-run]      one-time: move tasks into .tasks/tasks/ so the page renders first
 
 ${bold("capture")}
   cairn add "<thought>"          two-second capture into the backlog

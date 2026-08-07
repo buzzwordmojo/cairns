@@ -63,8 +63,9 @@ describe("renderBoard", () => {
   test("a task id links to a path the git host can resolve from the page", () => {
     const board = tempBoard();
     const task = createTask(board, { title: "Linkable" });
-    // Relative to `.tasks/`, because that is where the page lives.
-    expect(renderBoard(board)).toContain(`(${task.id}/task.md)`);
+    // Relative to `.tasks/`, because that is where the page lives — so the link
+    // descends into `tasks/`, which is where the task itself lives.
+    expect(renderBoard(board)).toContain(`(tasks/${task.id}/task.md)`);
   });
 
   test("a pipe in a title stays inside its table cell", () => {

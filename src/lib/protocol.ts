@@ -52,7 +52,7 @@ cannot verify a line, say so instead of marking it done.
 ### Never
 - Do not delete or rewrite log entries. Overturn instead:
   cairn log <id> "supersedes <log-id>: <what is true now> because <why>"
-- Do not hand-edit \`.tasks/*/log.ndjson\`. It is append-only.
+- Do not hand-edit \`.tasks/tasks/*/log.ndjson\`. It is append-only.
 
 ### Uncertainty
 If you need a human decision, do not guess:

@@ -38,7 +38,7 @@ active="$root/.tasks/.active"
 if [ -z "$id" ]; then
   branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null) || branch=""
   guess=$(printf '%s' "$branch" | grep -oE '(^|[/_.-])t-[0-9a-z]{1,32}' | head -n 1 | sed 's/^[^t]//')
-  if [ -n "$guess" ] && [ -d "$root/.tasks/$guess" ]; then id="$guess"; fi
+  if [ -n "$guess" ] && [ -d "$root/.tasks/tasks/$guess" ]; then id="$guess"; fi
 fi
 
 # The silent skip is what loses the link: hooks install, work gets committed, and

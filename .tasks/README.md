@@ -9,32 +9,32 @@ the source of truth is each task's `task.md` and append-only `log.ndjson`.
 
 | Task | Title | Dead ends | Questions | Log |
 | --- | --- | --: | --: | --: |
-| [`t-2drpwb2bxnxjq6`](t-2drpwb2bxnxjq6/task.md) | Reverse lookup is untested in practice because the commit-derived index never populates without commits |  |  | 3 |
+| [`t-2drpwb2bxnxjq6`](tasks/t-2drpwb2bxnxjq6/task.md) | Reverse lookup is untested in practice because the commit-derived index never populates without commits |  |  | 3 |
 
 <details>
 <summary><b>Dead ends (7)</b></summary>
 
 Approaches that were tried and failed, with the mechanism that killed them.
 
-- **2026-08-03** · [`t-2dx47w4g2qf3yw`](t-2dx47w4g2qf3yw/task.md) Render the board as markdown so it displays in the GitHub repo viewer
+- **2026-08-03** · [`t-2dx47w4g2qf3yw`](tasks/t-2dx47w4g2qf3yw/task.md) Render the board as markdown so it displays in the GitHub repo viewer
   regenerating the board page from inside a merge driver produces a page that is silently wrong, because git invokes merge drivers while merging file contents — before the rest of the merged tree reaches the working directory. Proved it with a driver that recorded 'ls .tasks': it saw 2 of the 3 task directories the merge was creating, so cairn render read a tree that did not exist yet and the merge completed clean with a row missing.
 
-- **2026-08-01** · [`t-2drr1yne89362z`](t-2drr1yne89362z/task.md) Stop losing task-to-code links when no task is active at commit time
+- **2026-08-01** · [`t-2drr1yne89362z`](tasks/t-2drr1yne89362z/task.md) Stop losing task-to-code links when no task is active at commit time
   upgrading the hook body silently disabled a chained third-party hook because installOne rewrote the file with the plain body while leaving the .pre-cairns backup on disk, so the backup stayed there with nothing invoking it — hit live on app.hermen.io
 
-- **2026-08-01** · [`t-2drhs8vkf0cwzv`](t-2drhs8vkf0cwzv/task.md) Publish cairns to npm
+- **2026-08-01** · [`t-2drhs8vkf0cwzv`](tasks/t-2drhs8vkf0cwzv/task.md) Publish cairns to npm
   chasing a bypass-2FA token is the wrong fix because npm is actively deprecating token-based 2FA bypass for direct publishing — the registry now emits 'npm tokens that bypass 2FA are being restricted for account changes and direct publishing' (gh.io/npm-gat-bypass2fa-deprecation). npm token list shows both tokens in npm-token.txt are type 'Publish', which always demands an interactive OTP. Unattended publishing now routes through GitHub Actions trusted publishing over OIDC, not a longer-lived token.
 
-- **2026-08-01** · [`t-2drhs8vkf0cwzv`](t-2drhs8vkf0cwzv/task.md) Publish cairns to npm
+- **2026-08-01** · [`t-2drhs8vkf0cwzv`](tasks/t-2drhs8vkf0cwzv/task.md) Publish cairns to npm
   publishing with the granular token in npm-token.txt fails E403 because npm requires either an interactive OTP or a token with bypass-2FA explicitly enabled — npm whoami succeeds with this token, so authentication and publish authorization are separate gates and a working whoami proves nothing about publish rights.
 
-- **2026-08-01** · [`t-2dr2048qx0g618`](t-2dr2048qx0g618/task.md) Fix two defects found trialling cairns on matchbook
+- **2026-08-01** · [`t-2dr2048qx0g618`](tasks/t-2dr2048qx0g618/task.md) Fix two defects found trialling cairns on matchbook
   cairn log t-id extra words "text" silently joined the stray positionals onto the front of the message because the command concatenates every positional after the id, so a shell quoting slip produced four plausible-looking but wrong entries and kind detection fell back to note; in an append-only log that corruption is permanent
 
-- **2026-08-01** · [`t-2dq9evg6cxsmyy`](t-2dq9evg6cxsmyy/task.md) Build cairns v1 from DESIGN.md
+- **2026-08-01** · [`t-2dq9evg6cxsmyy`](tasks/t-2dq9evg6cxsmyy/task.md) Build cairns v1 from DESIGN.md
   budget fit() looped forever and OOM-killed the test run because trimming a 5-line block to slice(0,4) plus a '… N more' marker yields 5 lines again, so the loop condition never advanced — added a trimmed flag and a >5 threshold so every iteration either shrinks a block or removes it
 
-- **2026-08-01** · [`t-2dq9evg6cxsmyy`](t-2dq9evg6cxsmyy/task.md) Build cairns v1 from DESIGN.md
+- **2026-08-01** · [`t-2dq9evg6cxsmyy`](tasks/t-2dq9evg6cxsmyy/task.md) Build cairns v1 from DESIGN.md
   a 20-bit random id tail collided 11 times in 5000 same-second mints because the birthday bound puts expected collisions at n^2/(2*2^20) ~ 12 — widened the tail to 40 bits and added a filesystem existence check under the board lock so a collision can never silently overwrite a task directory
 
 </details>
@@ -42,37 +42,37 @@ Approaches that were tried and failed, with the mechanism that killed them.
 <details>
 <summary><b>Closed (6)</b></summary>
 
-### [`t-2dq9evg6cxsmyy`](t-2dq9evg6cxsmyy/task.md) — Build cairns v1 from DESIGN.md
+### [`t-2dq9evg6cxsmyy`](tasks/t-2dq9evg6cxsmyy/task.md) — Build cairns v1 from DESIGN.md
 
 closed 2026-08-01
 
 cairns v1 ships: 14 CLI commands, a zero-dep board TUI, 68 tests, zero runtime dependencies. Task state is .tasks/<id>/task.md plus an append-only log.ndjson merged with merge=union. Two bugs the tests caught are worth knowing about before touching ids or budget: the id tail needs >=40 random bits, and fit() must shrink or remove a block every iteration or cairn context hangs.
 
-### [`t-2dr2048qx0g618`](t-2dr2048qx0g618/task.md) — Fix two defects found trialling cairns on matchbook
+### [`t-2dr2048qx0g618`](tasks/t-2dr2048qx0g618/task.md) — Fix two defects found trialling cairns on matchbook
 
 closed 2026-08-01
 
 cairn log now refuses stray positionals instead of folding them into the message, and cairn related shows findings for open tasks first rather than reducing them to a bare id list. Both defects came from a ten-minute trial on matchbook, not from the test suite.
 
-### [`t-2dr27g0jay38k6`](t-2dr27g0jay38k6/task.md) — Make cairn init fully reversible
+### [`t-2dr27g0jay38k6`](tasks/t-2dr27g0jay38k6/task.md) — Make cairn init fully reversible
 
 closed 2026-08-01
 
 cairn init is now fully reversible. Every file it writes carries a marker (cairns:begin/end in CLAUDE.md, cairns:hook in .git/hooks, cairns:attributes in .gitattributes) and `cairn uninstall` strips exactly those, restoring a chained hook from its .pre-cairns backup and declining to touch any hook without the marker. .tasks/ survives unless --purge. Verified by round-trip in a real repo that already had a CLAUDE.md, a .gitattributes rule and a foreign post-commit hook — all three came back byte-identical.
 
-### [`t-2drhs8vkf0cwzv`](t-2drhs8vkf0cwzv/task.md) — Publish cairns to npm
+### [`t-2drhs8vkf0cwzv`](tasks/t-2drhs8vkf0cwzv/task.md) — Publish cairns to npm
 
 closed 2026-08-03
 
 cairns is on the public registry: 0.0.1 landed 2026-08-03T12:04Z and 0.0.2 followed the same day with cairn render. Verified the way the criteria asked rather than by trusting the publish output — installed cairns@0.0.2 into an empty directory with no clone in sight, ran cairn init, add and render from node_modules/.bin, and got a board page. Publish auth is the _authToken line in ~/.npmrc, npm's own credential store; npm-token.txt is gone from disk and git log --all confirms it was never committed, and npm-token* is now gitignored so a recreated one cannot ride along in git add -A. The two dead ends here recorded direct token publishing as blocked by 2FA — that is no longer what happens, and what changed between then and the 12:04Z publish is not recorded, so treat the OIDC/GitHub Actions route as unproven rather than rejected. Version stays on the patch line at Bob's call: 0.0.x signals an interface still settling, which a minor bump would contradict.
 
-### [`t-2drr1yne89362z`](t-2drr1yne89362z/task.md) — Stop losing task-to-code links when no task is active at commit time
+### [`t-2drr1yne89362z`](tasks/t-2drr1yne89362z/task.md) — Stop losing task-to-code links when no task is active at commit time
 
 closed 2026-08-01
 
 The trailer hook now fails loudly instead of silently: it reads .tasks/.active, falls back to a task id in the branch name (discarding any candidate without a task directory, so hotfix-t-shirt-sizing links to nothing), and prints a two-line stderr notice naming the fix when it finds neither. It stays silent while git replays a message, which needs the sequencer state files because rebase and cherry-pick both report $2 as 'message' exactly like commit -m. cairn link <id> <rev-or-range> backfills commits that missed the trailer into a separate 'linked:' frontmatter key, reported by related as '(via backfilled commits, not trailers)' — kept apart from both targets and the trailer index so no label claims provenance it does not have. Two defects surfaced while building it: diff-tree needs --root or the first commit of a repo backfills nothing, and installOne dropped the chain when upgrading a chained hook, which silently disabled a third-party post-commit hook on app.hermen.io until it was fixed and restored. HOOK_VERSION is 2; every repo running cairns needs cairn init --hooks. 95 tests.
 
-### [`t-2dx47w4g2qf3yw`](t-2dx47w4g2qf3yw/task.md) — Render the board as markdown so it displays in the GitHub repo viewer
+### [`t-2dx47w4g2qf3yw`](tasks/t-2dx47w4g2qf3yw/task.md) — Render the board as markdown so it displays in the GitHub repo viewer
 
 closed 2026-08-03
 
