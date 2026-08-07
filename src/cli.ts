@@ -14,7 +14,7 @@ import { list, logOnly, reindex, relatedCmd, search, show } from "./commands/ret
 import { done, start, stop } from "./commands/status.js";
 import { uninstall } from "./commands/uninstall.js";
 
-export const VERSION = "0.0.2";
+export const VERSION = "0.0.3";
 
 type Handler = (args: ReturnType<typeof parseArgs>) => number | Promise<number>;
 
