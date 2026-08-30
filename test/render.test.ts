@@ -1,15 +1,16 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { COMMANDS, MUTATES, main } from "../src/cli.js";
 import { render } from "../src/commands/render.js";
 import { uninstall } from "../src/commands/uninstall.js";
 import { type Board, locate, writeActive } from "../src/lib/board.js";
 import { installMergeDriver } from "../src/lib/githooks.js";
 import { appendLog } from "../src/lib/log.js";
-import { DEAD_END_CAP, RENDER_FILE, renderBoard } from "../src/lib/render.js";
+import { DEAD_END_CAP, RENDER_FILE, pagePath, renderBoard } from "../src/lib/render.js";
 import { writeSection } from "../src/lib/sections.js";
-import { createTask, writeTask } from "../src/lib/task.js";
+import { createTask, listTasks, writeTask } from "../src/lib/task.js";
 import { cleanup, tempBoard } from "./helpers.js";
 
 afterAll(cleanup);
@@ -252,5 +253,93 @@ describe("cairn uninstall", () => {
     inBoard(board, () => quietly(() => uninstall({ positional: [], flags: {} })));
     expect(existsSync(join(board.dir, RENDER_FILE))).toBe(false);
     expect(existsSync(join(board.root, ".gitattributes"))).toBe(false);
+  });
+});
+
+describe("the page refreshes when the board changes, not when git does", () => {
+  /** What is on disk, against what the board says it should be. */
+  function pageIsFresh(board: Board): boolean {
+    const target = pagePath(board);
+    return existsSync(target) && readFileSync(target, "utf8") === renderBoard(board);
+  }
+
+  // `inBoard` restores the cwd synchronously, which would land after an awaited
+  // `main` and leave the post-command refresh rendering the wrong directory.
+  async function run(board: Board, ...argv: string[]): Promise<number> {
+    const cwd = process.cwd();
+    process.chdir(board.root);
+    const [log, error] = [console.log, console.error];
+    console.log = () => {};
+    console.error = () => {};
+    try {
+      return await main(argv);
+    } finally {
+      console.log = log;
+      console.error = error;
+      process.chdir(cwd);
+    }
+  }
+
+  test("a whole session leaves the page fresh after every mutating command", async () => {
+    // The regression this exists for: the only refresh was wired to `post-merge`,
+    // so a repo that never merges rendered once and then drifted. Every command
+    // below changes `.tasks/` without going anywhere near git.
+    const board = gitBoard();
+    expect(await run(board, "init")).toBe(0);
+
+    expect(await run(board, "add", "First task")).toBe(0);
+    expect(pageIsFresh(board)).toBe(true);
+
+    const id = listTasks(board)[0]!.id;
+
+    for (const argv of [
+      ["start", id],
+      ["log", id, "note: something true"],
+      ["ask", id, "which way?"],
+      ["stop"],
+      ["done", id, "--outcome", "shipped it"],
+    ]) {
+      expect(await run(board, ...argv)).toBe(0);
+      expect(pageIsFresh(board)).toBe(true);
+    }
+  });
+
+  test("the page tracks the count, not just its own existence", async () => {
+    const board = gitBoard();
+    await run(board, "init");
+    await run(board, "add", "One");
+    expect(readFileSync(pagePath(board), "utf8")).toContain("## Open (1)");
+    await run(board, "add", "Two");
+    // The stale page in the field claimed 34 open tasks against 51 on disk;
+    // existence alone would have passed that board.
+    expect(readFileSync(pagePath(board), "utf8")).toContain("## Open (2)");
+  });
+
+  test("every name in MUTATES is a real command", () => {
+    // A typo here fails open — the page silently stops refreshing for that
+    // command and nothing else notices, which is the whole bug class.
+    for (const name of MUTATES) expect(Object.keys(COMMANDS)).toContain(name);
+  });
+
+  test("a refused command does not render on its way out", async () => {
+    const board = gitBoard();
+    await run(board, "init");
+    await run(board, "add", "Only task");
+    const before = readFileSync(pagePath(board), "utf8");
+
+    // `done` without an outcome is refused, so nothing about the board changed.
+    expect(await run(board, "done", listTasks(board)[0]!.id)).toBe(1);
+    expect(readFileSync(pagePath(board), "utf8")).toBe(before);
+  });
+
+  test("a page that cannot be written does not fail the command that changed the board", async () => {
+    const board = gitBoard();
+    await run(board, "init");
+    // A directory where the page belongs: the write throws, the mutation stands.
+    rmSync(pagePath(board), { force: true });
+    mkdirSync(pagePath(board), { recursive: true });
+
+    expect(await run(board, "add", "Recorded even though the page cannot be")).toBe(0);
+    expect(listTasks(board)).toHaveLength(1);
   });
 });

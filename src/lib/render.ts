@@ -1,3 +1,5 @@
+import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { type Board, TASK_FILE, TASKS_DIR, readActive } from "./board.js";
 import { type LogEntry, openQuestionEntries, readLog, supersededIds } from "./log.js";
 import { readProjectNotes } from "./notes.js";
@@ -15,6 +17,49 @@ export const GENERATED_MARKER = "<!-- cairns:generated -->";
  */
 export const DEAD_END_CAP = 40;
 export const QUESTION_CAP = 20;
+
+export const pagePath = (b: Board) => join(b.dir, RENDER_FILE);
+
+/**
+ * Written through a rename so a reader never sees half a page. The board lock is
+ * deliberately not held here, because this runs after a command has already
+ * released it and a nested acquisition would spin its full deadline first.
+ */
+export function writePage(target: string, body: string): void {
+  const tmp = `${target}.${process.pid}.tmp`;
+  try {
+    writeFileSync(tmp, body);
+    renameSync(tmp, target);
+  } catch (err) {
+    try {
+      unlinkSync(tmp);
+    } catch {
+      /* the temp file is already gone, or was never created */
+    }
+    throw err;
+  }
+}
+
+/**
+ * The page is derived from `.tasks/`, so what invalidates it is a cairn command,
+ * not a git event. Wiring the only refresh to `post-merge` meant a repo that
+ * never merges rendered once and then drifted in silence.
+ *
+ * Best-effort by construction. A board mutation that already landed on disk must
+ * never be reported as failed because a derived file could not be rewritten.
+ */
+export function refreshBoardPage(board: Board): "created" | "updated" | "unchanged" | "failed" {
+  try {
+    const target = pagePath(board);
+    const body = renderBoard(board);
+    const current = existsSync(target) ? readFileSync(target, "utf8") : null;
+    if (current === body) return "unchanged";
+    writePage(target, body);
+    return current === null ? "created" : "updated";
+  } catch {
+    return "failed";
+  }
+}
 
 interface Row {
   task: Task;

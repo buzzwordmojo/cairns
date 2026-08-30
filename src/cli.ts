@@ -1,6 +1,8 @@
 #!/usr/bin/env node
+import { existsSync } from "node:fs";
 import { parseArgs } from "./lib/args.js";
-import { BoardError } from "./lib/board.js";
+import { BoardError, hasLegacyLayout, locate } from "./lib/board.js";
+import { refreshBoardPage } from "./lib/render.js";
 import { bold, cyan, dim } from "./lib/ui.js";
 import { add } from "./commands/add.js";
 import { context } from "./commands/context.js";
@@ -18,7 +20,7 @@ export const VERSION = "0.0.3";
 
 type Handler = (args: ReturnType<typeof parseArgs>) => number | Promise<number>;
 
-const COMMANDS: Record<string, Handler> = {
+export const COMMANDS: Record<string, Handler> = {
   init,
   uninstall,
   migrate,
@@ -43,6 +45,48 @@ const COMMANDS: Record<string, Handler> = {
   render,
   board: boardTui,
 };
+
+/**
+ * Commands that change `.tasks/` and therefore invalidate the rendered page.
+ * It sits next to COMMANDS because the two lists have to move together — a new
+ * mutating command that is not listed here reintroduces the exact silent drift
+ * this list exists to stop. `test/render.test.ts` walks a real session through
+ * every entry and fails if any of them leaves the page stale.
+ *
+ * `uninstall` is deliberately absent: it deletes the page, and re-rendering
+ * afterwards would put back the one file it was asked to remove.
+ */
+export const MUTATES = new Set([
+  "init",
+  "migrate",
+  "add",
+  "start",
+  "stop",
+  "done",
+  "log",
+  "ask",
+  "answer",
+  "edit",
+  "link",
+]);
+
+/**
+ * Runs after the command, never inside it. The page is derived state — it cannot
+ * be allowed to fail a mutation that already succeeded, so every failure path
+ * here is a silent no-op and `cairn render --check` stays the thing that reports
+ * staleness out loud.
+ */
+function refreshPage(): void {
+  try {
+    const board = locate();
+    // A legacy board has nothing under `.tasks/tasks/`, so rendering it would
+    // write a page saying the board is empty. `cairn migrate` renders instead.
+    if (!existsSync(board.dir) || hasLegacyLayout(board)) return;
+    refreshBoardPage(board);
+  } catch {
+    /* no board, no permission, no page — none of it is this command's problem */
+  }
+}
 
 const HELP = `${bold("cairn")} — a repo-native task board that doubles as memory for coding agents
 
@@ -107,7 +151,11 @@ export async function main(argv: string[]): Promise<number> {
   }
 
   try {
-    return await handler(parseArgs(rest));
+    const code = await handler(parseArgs(rest));
+    // Only on success: a command that refused to act did not change the board,
+    // and rendering on its way out would hide that nothing happened.
+    if (code === 0 && MUTATES.has(name)) refreshPage();
+    return code;
   } catch (err) {
     if (err instanceof BoardError) {
       console.error(err.message);

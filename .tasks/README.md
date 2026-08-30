@@ -40,7 +40,7 @@ Approaches that were tried and failed, with the mechanism that killed them.
 </details>
 
 <details>
-<summary><b>Closed (6)</b></summary>
+<summary><b>Closed (7)</b></summary>
 
 ### [`t-2dq9evg6cxsmyy`](tasks/t-2dq9evg6cxsmyy/task.md) — Build cairns v1 from DESIGN.md
 
@@ -77,6 +77,12 @@ The trailer hook now fails loudly instead of silently: it reads .tasks/.active, 
 closed 2026-08-03
 
 cairn render writes .tasks/README.md, which a git host renders under the file listing when you click .tasks/ — open work, open questions, recorded dead ends with their mechanisms, and closed outcomes, each id linking to its task.md. The page is a pure function of .tasks/: no clock, and project notes render without markStale because markStale asks git whether a path moved, which would make the bytes differ between a full clone and a shallow CI checkout. It is the only derived file cairns commits, so DESIGN.md:617 is satisfied by making it un-mergeable rather than untracked — .gitattributes routes it to a driver configured as 'true' (keep one side, never conflict) and the new post-merge hook re-renders once the working tree is whole. Regenerating inside the merge driver looks obvious and is silently wrong: git runs drivers before the rest of the merged tree lands, so it rendered 2 of 3 task dirs and produced a clean merge missing a row. cairn render --check is the CI form; a workflow that commits the page back races your own push. HOOK_VERSION is 3 and .gitattributes is v2 — the old marker check was an unconditional early return, so existing installs could never receive a new rule. 112 tests.
+
+### [`t-2g3c931yevchrv`](tasks/t-2g3c931yevchrv/task.md) — The rendered board page goes stale because only post-merge re-renders it
+
+closed 2026-08-30
+
+The board page now refreshes from the CLI dispatch after any mutating command, so it can no longer go stale between merges. src/cli.ts carries a MUTATES set beside COMMANDS (init, migrate, add, start, stop, done, log, ask, answer, edit, link — uninstall deliberately absent because it deletes the page), and main() calls refreshBoardPage only when the handler returned 0, so a refused command does not render on its way out. refreshBoardPage is best-effort and swallows everything: a page that cannot be written must never fail a mutation that already landed on disk, and cairn render --check stays the thing that reports staleness out loud. Writes go through a temp file and rename, which cairn render now shares, rather than taking the board lock — the refresh runs after the command released it and a nested withLock would spin its full 5s deadline first. No git hook changed, so HOOK_VERSION stays 3 and no repo needs cairn init --hooks; the fix arrives on npm upgrade. Found live: next.scrapcycle.org rendered on 2026-08-07 and then drifted three weeks to a page claiming 34 open and 9 closed against 51 open, 1 doing and 18 done on disk. Re-rendered, that board grows from 34 to 52 open rows, and its dead ends go 5 to 16 and open questions 0 to 3 — the stale page was hiding the two sections that carry the memory value. 127 tests.
 
 </details>
 

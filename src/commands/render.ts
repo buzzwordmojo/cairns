@@ -1,9 +1,9 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import type { Args } from "../lib/args.js";
 import { flagBool, flagString } from "../lib/args.js";
 import { requireBoard } from "../lib/board.js";
-import { RENDER_FILE, renderBoard } from "../lib/render.js";
+import { RENDER_FILE, renderBoard, writePage } from "../lib/render.js";
 import { cyan, dim, green, yellow } from "../lib/ui.js";
 
 /**
@@ -42,7 +42,7 @@ export function render(args: Args): number {
     console.log(dim(`unchanged  ${rel}`));
     return 0;
   }
-  writeFileSync(target, body);
+  writePage(target, body);
   console.log(`${current === null ? green("created") : green("updated")}  ${rel}`);
   return 0;
 }
