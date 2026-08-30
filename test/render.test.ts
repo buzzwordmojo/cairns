@@ -423,3 +423,16 @@ describe("the open table is scannable at 50 rows", () => {
     expect(page).not.toContain(new Date().toISOString().slice(0, 10));
   });
 });
+
+describe("release metadata", () => {
+  test("cairn --version matches package.json", async () => {
+    // Two hand-maintained strings. When they drift, `cairn --version` lies about
+    // which build is installed — which is exactly the question you ask it after
+    // an upgrade that seems not to have taken.
+    const pkg = JSON.parse(
+      readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+    ) as { version: string };
+    const { VERSION } = await import("../src/cli.js");
+    expect(VERSION).toBe(pkg.version);
+  });
+});
