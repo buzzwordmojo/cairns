@@ -72,12 +72,16 @@ describe("renderBoard", () => {
   test("a pipe in a title stays inside its table cell", () => {
     const board = tempBoard();
     createTask(board, { title: "Parse a | b without breaking" });
-    const row = renderBoard(board)
-      .split("\n")
-      .find((l) => l.includes("Parse a"))!;
+    const lines = renderBoard(board).split("\n");
+    const header = lines.find((l) => l.startsWith("| Task |"))!;
+    const row = lines.find((l) => l.includes("Parse a"))!;
+
     expect(row).toContain("a \\| b");
-    // Six unescaped pipes is one row of five cells; the seventh is the escaped one.
-    expect(row.split(/(?<!\\)\|/).length - 1).toBe(6);
+    // Counting cells rather than a fixed number, because which columns render
+    // now depends on what the rows hold. The invariant is that the escaped pipe
+    // did not split the row into one more cell than the header has.
+    const cells = (l: string) => l.split(/(?<!\\)\|/).length - 1;
+    expect(cells(row)).toBe(cells(header));
   });
 
   test("dead ends carry their mechanism onto the page", () => {
@@ -341,5 +345,81 @@ describe("the page refreshes when the board changes, not when git does", () => {
 
     expect(await run(board, "add", "Recorded even though the page cannot be")).toBe(0);
     expect(listTasks(board)).toHaveLength(1);
+  });
+});
+
+describe("the open table is scannable at 50 rows", () => {
+  test("rows run newest first, because ascending ids buried today's work", () => {
+    const board = tempBoard();
+    const a = createTask(board, { title: "One" });
+    const b = createTask(board, { title: "Two" });
+
+    // Keyed on id order rather than creation order on purpose. `mint` encodes
+    // whole seconds, so two tasks created inside the same second tie on the
+    // time prefix and are separated only by their random tail — creation order
+    // is not recoverable from the id at sub-second resolution, and asserting it
+    // makes this test pass or fail on a coin flip.
+    const [older, newer] = [a.id, b.id].sort();
+    const page = renderBoard(board);
+    expect(page.indexOf(newer!)).toBeLessThan(page.indexOf(older!));
+  });
+
+  test("a column every row would leave blank is not rendered", () => {
+    const board = tempBoard();
+    createTask(board, { title: "No findings on this one" });
+    const header = renderBoard(board)
+      .split("\n")
+      .find((l) => l.startsWith("| Task |"))!;
+
+    expect(header).toContain("Created");
+    expect(header).toContain("Title");
+    for (const dropped of ["Dead ends", "Questions", "Log"]) {
+      expect(header).not.toContain(dropped);
+    }
+  });
+
+  test("a column one row actually uses comes back", () => {
+    const board = tempBoard();
+    const task = createTask(board, { title: "This one has a finding" });
+    appendLog(board, task.id, { author: "t", kind: "dead-end", text: "x failed because y" });
+    const header = renderBoard(board)
+      .split("\n")
+      .find((l) => l.startsWith("| Task |"))!;
+    expect(header).toContain("Dead ends");
+    expect(header).toContain("Log");
+    expect(header).not.toContain("Questions");
+  });
+
+  test("empty columns are judged per table, not per board", () => {
+    // An In progress row with no findings should not carry columns it leaves
+    // blank just because some unrelated open task fills them.
+    const board = tempBoard();
+    const busy = createTask(board, { title: "Open task carrying findings" });
+    appendLog(board, busy.id, { author: "t", kind: "dead-end", text: "x failed because y" });
+    const quiet = createTask(board, { title: "Started, nothing recorded yet" });
+    quiet.status = "doing";
+    writeTask(quiet);
+
+    const lines = renderBoard(board).split("\n");
+    const headerUnder = (section: string) => {
+      const at = lines.findIndex((l) => l.startsWith(`## ${section}`));
+      return lines.slice(at).find((l) => l.startsWith("| Task |"))!;
+    };
+    expect(headerUnder("In progress")).not.toContain("Dead ends");
+    expect(headerUnder("Open")).toContain("Dead ends");
+  });
+
+  test("the created date on the page is the one in the file, never today", () => {
+    // Bucketing by age would read better and would make the page a function of
+    // the clock: the same board would render different bytes tomorrow and
+    // `--check` would call a correct page stale every midnight.
+    const board = tempBoard();
+    const task = createTask(board, { title: "Opened long ago" });
+    task.created = "2019-04-01";
+    writeTask(task);
+
+    const page = renderBoard(board);
+    expect(page).toContain("2019-04-01");
+    expect(page).not.toContain(new Date().toISOString().slice(0, 10));
   });
 });

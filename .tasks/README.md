@@ -7,14 +7,18 @@ the source of truth is each task's `task.md` and append-only `log.ndjson`.
 
 ## Open (1)
 
-| Task | Title | Dead ends | Questions | Log |
-| --- | --- | --: | --: | --: |
-| [`t-2drpwb2bxnxjq6`](tasks/t-2drpwb2bxnxjq6/task.md) | Reverse lookup is untested in practice because the commit-derived index never populates without commits |  |  | 3 |
+| Task | Created | Log | Title |
+| --- | --- | --: | --- |
+| [`t-2drpwb2bxnxjq6`](tasks/t-2drpwb2bxnxjq6/task.md) | 2026-08-01 | 3 | Reverse lookup is untested in practice because the commit-derived index never populates without commits |
 
 <details>
-<summary><b>Dead ends (7)</b></summary>
+<summary><b>Dead ends (8)</b></summary>
 
 Approaches that were tried and failed, with the mechanism that killed them.
+
+- **2026-08-30** · [`t-2g3cg48dvfr9ry`](tasks/t-2g3cg48dvfr9ry/task.md) The open table is unreadable at 50 rows: oldest-first, no dates, three mostly-empty columns
+  grouping open tasks into age buckets like this week and this month cannot ship because renderBoard is contractually clock-free — a bucket boundary derived from today makes the same .tasks/ render different bytes tomorrow, so cairn render --check would report a correct page as stale every midnight and two branches would conflict over a header neither edited
+  mechanism: bucket boundaries are a function of now, and the page is committed and diffed
 
 - **2026-08-03** · [`t-2dx47w4g2qf3yw`](tasks/t-2dx47w4g2qf3yw/task.md) Render the board as markdown so it displays in the GitHub repo viewer
   regenerating the board page from inside a merge driver produces a page that is silently wrong, because git invokes merge drivers while merging file contents — before the rest of the merged tree reaches the working directory. Proved it with a driver that recorded 'ls .tasks': it saw 2 of the 3 task directories the merge was creating, so cairn render read a tree that did not exist yet and the merge completed clean with a row missing.
@@ -40,37 +44,19 @@ Approaches that were tried and failed, with the mechanism that killed them.
 </details>
 
 <details>
-<summary><b>Closed (7)</b></summary>
+<summary><b>Closed (8)</b></summary>
 
-### [`t-2dq9evg6cxsmyy`](tasks/t-2dq9evg6cxsmyy/task.md) — Build cairns v1 from DESIGN.md
+### [`t-2g3cg48dvfr9ry`](tasks/t-2g3cg48dvfr9ry/task.md) — The open table is unreadable at 50 rows: oldest-first, no dates, three mostly-empty columns
 
-closed 2026-08-01
+closed 2026-08-30
 
-cairns v1 ships: 14 CLI commands, a zero-dep board TUI, 68 tests, zero runtime dependencies. Task state is .tasks/<id>/task.md plus an append-only log.ndjson merged with merge=union. Two bugs the tests caught are worth knowing about before touching ids or budget: the id tail needs >=40 random bits, and fit() must shrink or remove a block every iteration or cairn context hangs.
+The open and in-progress tables are newest-first, carry a Created column, and drop any column no row in that table uses. collect() reverses listTasks because ids sort ascending and the untouched order buried today's work under every task ever opened. The table is now driven by a COLUMNS array with a used() predicate evaluated per table, not per board — verified on scrapcycle where In progress renders 5 columns and Open renders 6 off the same page. Title moved last because it is the only wide cell (74 chars median, 180 worst on that board), so everything scannable stays on the left edge. Age bucketing was asked for and refused: renderBoard is contractually clock-free, and a boundary derived from today would make the same .tasks/ render different bytes tomorrow, so render --check would call a correct page stale every midnight — the Created column is the clock-free substitute and the dead end records the mechanism. Worth knowing: dropping empty columns pays far less on a busy board than a fresh one, because across 52 open rows something fills every column. The pipe-escaping test had hardcoded a five-cell row, encoding the old column count rather than the invariant; it now compares row cells against header cells. 132 tests.
 
-### [`t-2dr2048qx0g618`](tasks/t-2dr2048qx0g618/task.md) — Fix two defects found trialling cairns on matchbook
+### [`t-2g3c931yevchrv`](tasks/t-2g3c931yevchrv/task.md) — The rendered board page goes stale because only post-merge re-renders it
 
-closed 2026-08-01
+closed 2026-08-30
 
-cairn log now refuses stray positionals instead of folding them into the message, and cairn related shows findings for open tasks first rather than reducing them to a bare id list. Both defects came from a ten-minute trial on matchbook, not from the test suite.
-
-### [`t-2dr27g0jay38k6`](tasks/t-2dr27g0jay38k6/task.md) — Make cairn init fully reversible
-
-closed 2026-08-01
-
-cairn init is now fully reversible. Every file it writes carries a marker (cairns:begin/end in CLAUDE.md, cairns:hook in .git/hooks, cairns:attributes in .gitattributes) and `cairn uninstall` strips exactly those, restoring a chained hook from its .pre-cairns backup and declining to touch any hook without the marker. .tasks/ survives unless --purge. Verified by round-trip in a real repo that already had a CLAUDE.md, a .gitattributes rule and a foreign post-commit hook — all three came back byte-identical.
-
-### [`t-2drhs8vkf0cwzv`](tasks/t-2drhs8vkf0cwzv/task.md) — Publish cairns to npm
-
-closed 2026-08-03
-
-cairns is on the public registry: 0.0.1 landed 2026-08-03T12:04Z and 0.0.2 followed the same day with cairn render. Verified the way the criteria asked rather than by trusting the publish output — installed cairns@0.0.2 into an empty directory with no clone in sight, ran cairn init, add and render from node_modules/.bin, and got a board page. Publish auth is the _authToken line in ~/.npmrc, npm's own credential store; npm-token.txt is gone from disk and git log --all confirms it was never committed, and npm-token* is now gitignored so a recreated one cannot ride along in git add -A. The two dead ends here recorded direct token publishing as blocked by 2FA — that is no longer what happens, and what changed between then and the 12:04Z publish is not recorded, so treat the OIDC/GitHub Actions route as unproven rather than rejected. Version stays on the patch line at Bob's call: 0.0.x signals an interface still settling, which a minor bump would contradict.
-
-### [`t-2drr1yne89362z`](tasks/t-2drr1yne89362z/task.md) — Stop losing task-to-code links when no task is active at commit time
-
-closed 2026-08-01
-
-The trailer hook now fails loudly instead of silently: it reads .tasks/.active, falls back to a task id in the branch name (discarding any candidate without a task directory, so hotfix-t-shirt-sizing links to nothing), and prints a two-line stderr notice naming the fix when it finds neither. It stays silent while git replays a message, which needs the sequencer state files because rebase and cherry-pick both report $2 as 'message' exactly like commit -m. cairn link <id> <rev-or-range> backfills commits that missed the trailer into a separate 'linked:' frontmatter key, reported by related as '(via backfilled commits, not trailers)' — kept apart from both targets and the trailer index so no label claims provenance it does not have. Two defects surfaced while building it: diff-tree needs --root or the first commit of a repo backfills nothing, and installOne dropped the chain when upgrading a chained hook, which silently disabled a third-party post-commit hook on app.hermen.io until it was fixed and restored. HOOK_VERSION is 2; every repo running cairns needs cairn init --hooks. 95 tests.
+The board page now refreshes from the CLI dispatch after any mutating command, so it can no longer go stale between merges. src/cli.ts carries a MUTATES set beside COMMANDS (init, migrate, add, start, stop, done, log, ask, answer, edit, link — uninstall deliberately absent because it deletes the page), and main() calls refreshBoardPage only when the handler returned 0, so a refused command does not render on its way out. refreshBoardPage is best-effort and swallows everything: a page that cannot be written must never fail a mutation that already landed on disk, and cairn render --check stays the thing that reports staleness out loud. Writes go through a temp file and rename, which cairn render now shares, rather than taking the board lock — the refresh runs after the command released it and a nested withLock would spin its full 5s deadline first. No git hook changed, so HOOK_VERSION stays 3 and no repo needs cairn init --hooks; the fix arrives on npm upgrade. Found live: next.scrapcycle.org rendered on 2026-08-07 and then drifted three weeks to a page claiming 34 open and 9 closed against 51 open, 1 doing and 18 done on disk. Re-rendered, that board grows from 34 to 52 open rows, and its dead ends go 5 to 16 and open questions 0 to 3 — the stale page was hiding the two sections that carry the memory value. 127 tests.
 
 ### [`t-2dx47w4g2qf3yw`](tasks/t-2dx47w4g2qf3yw/task.md) — Render the board as markdown so it displays in the GitHub repo viewer
 
@@ -78,11 +64,35 @@ closed 2026-08-03
 
 cairn render writes .tasks/README.md, which a git host renders under the file listing when you click .tasks/ — open work, open questions, recorded dead ends with their mechanisms, and closed outcomes, each id linking to its task.md. The page is a pure function of .tasks/: no clock, and project notes render without markStale because markStale asks git whether a path moved, which would make the bytes differ between a full clone and a shallow CI checkout. It is the only derived file cairns commits, so DESIGN.md:617 is satisfied by making it un-mergeable rather than untracked — .gitattributes routes it to a driver configured as 'true' (keep one side, never conflict) and the new post-merge hook re-renders once the working tree is whole. Regenerating inside the merge driver looks obvious and is silently wrong: git runs drivers before the rest of the merged tree lands, so it rendered 2 of 3 task dirs and produced a clean merge missing a row. cairn render --check is the CI form; a workflow that commits the page back races your own push. HOOK_VERSION is 3 and .gitattributes is v2 — the old marker check was an unconditional early return, so existing installs could never receive a new rule. 112 tests.
 
-### [`t-2g3c931yevchrv`](tasks/t-2g3c931yevchrv/task.md) — The rendered board page goes stale because only post-merge re-renders it
+### [`t-2drr1yne89362z`](tasks/t-2drr1yne89362z/task.md) — Stop losing task-to-code links when no task is active at commit time
 
-closed 2026-08-30
+closed 2026-08-01
 
-The board page now refreshes from the CLI dispatch after any mutating command, so it can no longer go stale between merges. src/cli.ts carries a MUTATES set beside COMMANDS (init, migrate, add, start, stop, done, log, ask, answer, edit, link — uninstall deliberately absent because it deletes the page), and main() calls refreshBoardPage only when the handler returned 0, so a refused command does not render on its way out. refreshBoardPage is best-effort and swallows everything: a page that cannot be written must never fail a mutation that already landed on disk, and cairn render --check stays the thing that reports staleness out loud. Writes go through a temp file and rename, which cairn render now shares, rather than taking the board lock — the refresh runs after the command released it and a nested withLock would spin its full 5s deadline first. No git hook changed, so HOOK_VERSION stays 3 and no repo needs cairn init --hooks; the fix arrives on npm upgrade. Found live: next.scrapcycle.org rendered on 2026-08-07 and then drifted three weeks to a page claiming 34 open and 9 closed against 51 open, 1 doing and 18 done on disk. Re-rendered, that board grows from 34 to 52 open rows, and its dead ends go 5 to 16 and open questions 0 to 3 — the stale page was hiding the two sections that carry the memory value. 127 tests.
+The trailer hook now fails loudly instead of silently: it reads .tasks/.active, falls back to a task id in the branch name (discarding any candidate without a task directory, so hotfix-t-shirt-sizing links to nothing), and prints a two-line stderr notice naming the fix when it finds neither. It stays silent while git replays a message, which needs the sequencer state files because rebase and cherry-pick both report $2 as 'message' exactly like commit -m. cairn link <id> <rev-or-range> backfills commits that missed the trailer into a separate 'linked:' frontmatter key, reported by related as '(via backfilled commits, not trailers)' — kept apart from both targets and the trailer index so no label claims provenance it does not have. Two defects surfaced while building it: diff-tree needs --root or the first commit of a repo backfills nothing, and installOne dropped the chain when upgrading a chained hook, which silently disabled a third-party post-commit hook on app.hermen.io until it was fixed and restored. HOOK_VERSION is 2; every repo running cairns needs cairn init --hooks. 95 tests.
+
+### [`t-2drhs8vkf0cwzv`](tasks/t-2drhs8vkf0cwzv/task.md) — Publish cairns to npm
+
+closed 2026-08-03
+
+cairns is on the public registry: 0.0.1 landed 2026-08-03T12:04Z and 0.0.2 followed the same day with cairn render. Verified the way the criteria asked rather than by trusting the publish output — installed cairns@0.0.2 into an empty directory with no clone in sight, ran cairn init, add and render from node_modules/.bin, and got a board page. Publish auth is the _authToken line in ~/.npmrc, npm's own credential store; npm-token.txt is gone from disk and git log --all confirms it was never committed, and npm-token* is now gitignored so a recreated one cannot ride along in git add -A. The two dead ends here recorded direct token publishing as blocked by 2FA — that is no longer what happens, and what changed between then and the 12:04Z publish is not recorded, so treat the OIDC/GitHub Actions route as unproven rather than rejected. Version stays on the patch line at Bob's call: 0.0.x signals an interface still settling, which a minor bump would contradict.
+
+### [`t-2dr27g0jay38k6`](tasks/t-2dr27g0jay38k6/task.md) — Make cairn init fully reversible
+
+closed 2026-08-01
+
+cairn init is now fully reversible. Every file it writes carries a marker (cairns:begin/end in CLAUDE.md, cairns:hook in .git/hooks, cairns:attributes in .gitattributes) and `cairn uninstall` strips exactly those, restoring a chained hook from its .pre-cairns backup and declining to touch any hook without the marker. .tasks/ survives unless --purge. Verified by round-trip in a real repo that already had a CLAUDE.md, a .gitattributes rule and a foreign post-commit hook — all three came back byte-identical.
+
+### [`t-2dr2048qx0g618`](tasks/t-2dr2048qx0g618/task.md) — Fix two defects found trialling cairns on matchbook
+
+closed 2026-08-01
+
+cairn log now refuses stray positionals instead of folding them into the message, and cairn related shows findings for open tasks first rather than reducing them to a bare id list. Both defects came from a ten-minute trial on matchbook, not from the test suite.
+
+### [`t-2dq9evg6cxsmyy`](tasks/t-2dq9evg6cxsmyy/task.md) — Build cairns v1 from DESIGN.md
+
+closed 2026-08-01
+
+cairns v1 ships: 14 CLI commands, a zero-dep board TUI, 68 tests, zero runtime dependencies. Task state is .tasks/<id>/task.md plus an append-only log.ndjson merged with merge=union. Two bugs the tests caught are worth knowing about before touching ids or budget: the id tail needs >=40 random bits, and fit() must shrink or remove a block every iteration or cairn context hangs.
 
 </details>
 
