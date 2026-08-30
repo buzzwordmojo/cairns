@@ -256,9 +256,18 @@ conflict.
 
 This matters more than it sounds. Backlog.md, the most mature tool in this space,
 ships no merge driver at all — one line of `.gitattributes`, `* text=auto` — and
-its issue tracker shows concurrent agent sessions silently destroying each other's
-notes because its `--notes` flag has replace semantics. Append-only plus union
-merge makes that class of bug unrepresentable.
+through v1.49 its issue tracker showed concurrent agent sessions silently
+destroying each other's notes, seven of eight writes lost while all eight reported
+success. v1.50.0 fixed it by taking a filesystem lock with no retries: the second
+writer is refused outright, exiting non-zero or returning 409.
+
+That is the comparison worth holding onto, because it is a choice and not an
+oversight. A lock in front of a read-modify-write can only ever refuse one of two
+concurrent writers. Append-only plus union merge has no read-modify-write to lose,
+so both appends survive and neither agent is turned away. Their class of bug is
+unrepresentable here rather than guarded against, and the cost of that is paid in
+section 7 instead: a log that never rejects a write is a log that has to be
+compacted.
 
 Human-facing rendering of the log stays markdown; NDJSON is the storage form
 precisely because line-oriented append is what union merge understands.
@@ -604,9 +613,17 @@ it can be the reason people upgrade.
 
 Guard against flag accretion specifically. Backlog.md's `task edit` carries
 thirty-nine options, several of which quietly differ in whether they append or
-replace — and that ambiguity is how concurrent agent sessions destroyed each
-other's notes in their issue tracker. Every write command here should have exactly
-one semantic, and append should be the only one available on the log.
+replace. They spent v1.48 making that deterministic — `--acceptance-criteria`
+replaces the whole checklist, `--ac` stays additive, `--clear-ac` was added for
+atomic clears, and ambiguous combinations are now rejected — which is a fair
+measure of how much ambiguity thirty-nine options had accumulated.
+
+The note destruction their issue tracker showed is a separate mechanism and worth
+keeping separate: it was an unlocked read-modify-write behind three entry points,
+not flag semantics, and v1.50.0 fixed it with a lock. Every write command here
+should still have exactly one semantic, and append should be the only one
+available on the log — not because ambiguity caused that bug, but because a
+command whose semantics you have to look up is one an agent will guess at.
 
 ### Build constraints
 
@@ -684,21 +701,29 @@ retrieval design has failed and the fix is in section 6, not in the thesis.
 
 ### Backlog.md
 
-github.com/MrLesk/Backlog.md — MIT, 6,339 stars, 6,720 npm downloads per week,
-version 1.48 as of 2026-08-01, one maintainer, no monetization of any kind. The
-mature tool in this space and the reason cairns is not a board.
+github.com/MrLesk/Backlog.md — MIT, 6,571 stars, 14,598 npm downloads per week,
+version 1.50.1 as of 2026-08-30, one maintainer, no monetization of any kind. The
+mature tool in this space and the reason cairns is not a board. Weekly downloads
+have more than doubled since this section was first written against v1.48; read
+every claim below as dated, because four releases landed in the nine days to
+2026-08-10 and several of them moved.
 
 It already ships: one markdown file per task with frontmatter under `backlog/`,
-committed to the repo; zero runtime dependencies; a CLI aimed explicitly at humans
-plus AI agents; an instruction block written into CLAUDE.md and AGENTS.md at init;
-terminal kanban; an MCP server; and, since v1.45, a `modifiedFiles` field. Every
-positioning claim in an early draft of this document, it holds first.
+committed to the repo; zero declared runtime dependencies, still true at 1.50.1
+(`proper-lockfile` arrived in 1.50.0 as a devDependency, bundled at build); a CLI
+aimed explicitly at humans plus AI agents; an instruction block written into
+CLAUDE.md and AGENTS.md at init; terminal kanban; an MCP server; a `modifiedFiles`
+field since v1.45; task types, `--json` on every read command, and derived
+dependency readiness since v1.48–1.50; and config that now fails closed on
+malformed YAML rather than silently applying defaults. Every positioning claim in
+an early draft of this document, it holds first.
 
 What it does not have, and what this design exists for: an append-only per-task
 record of what was tried and failed, and reverse lookup from a source file to the
-dead ends recorded against it. Its decisions live in separate ADR documents, its
-`--notes` field has replace semantics that its own issue tracker shows destroying
-accumulated agent history, and completed tasks are invisible in its search.
+dead ends recorded against it. Its decisions live in separate ADR documents —
+enumerable since v1.50.0's `decision list`, but still documents beside the task
+rather than history inside it. Completed tasks being invisible in its search was
+true at v1.48 and has not been rechecked since.
 
 #### Taken
 
@@ -715,12 +740,28 @@ accumulated agent history, and completed tasks are invisible in its search.
 - Auto-commit defaults to off, and never stages a whole directory. Their bare
   `git commit` over the whole board let one agent session commit another's
   unreviewed work.
+- Hiding a board column that no row fills. Shipped for their browser board in
+  BACK-522 and extended to the TUI in v1.50.0, and the same reasoning applies to a
+  markdown table: a column of blanks is width the title could have had.
 
 #### Avoided
 
 - Sequential ids, per section 12.
 - Two orthogonal notions of doneness — a status string and a physical move into a
   `completed/` directory — which is the root of their cross-branch complexity.
+  v1.50.1 is the strongest evidence for this bullet and it is theirs: cross-branch
+  loading cost roughly 394 git operations per read, `task list` took 4.2 seconds
+  and a no-op `task edit` took 12.2, and the fix was to make CLI reads local-only
+  by design. A task that exists only on another branch is no longer resolvable
+  from `task view`, `task edit` or `task list`. They did not repair the two-places
+  model; they withdrew the CLI from it.
+
+  Do not read their v1.49.0 release line "Archive one-week-old completed backlog
+  tasks" as this design being revisited and vindicated. PR #787 is 151 pure
+  renames with zero content change, moving their own board's finished tasks into a
+  `backlog/completed/` directory that has existed since at least January 2026. It
+  is housekeeping on their repository, not a feature, and there is no archive
+  command. The directory is the same design this bullet rejects, not a new one.
 - Denormalized parent and child pointers that drift apart.
 - Case asymmetry between id in frontmatter and id in filename.
 - Permissive input handling that becomes scar tissue: five accepted date formats
@@ -730,20 +771,46 @@ accumulated agent history, and completed tasks are invisible in its search.
 
 #### Validated
 
-Their issue tracker is the strongest available evidence for this design. Multi-
-writer identity collisions are their dominant unresolved failure and are
-philosophically locked shut by their manifesto. Concurrent agent sessions
-overwriting each other's notes is reported and open. Context cost was measured at
-fifteen to twenty percent of session tokens and the fix was declined. No tool in
-the survey ships any mechanical enforcement of agent behaviour at all, which makes
-because-clause validation a real differentiator rather than table stakes.
+Their issue tracker is the strongest available evidence for this design, and one
+of the four claims it used to carry has since been fixed — which sharpens the
+argument rather than weakening it.
+
+Concurrent agent sessions overwriting each other's notes was reported and open at
+v1.48. It is fixed as of v1.50.0. Their own measurement in the fix is the number
+worth keeping: `updateTaskFromInput` was an unlocked read-modify-write behind CLI
+`task edit`, MCP `task_edit` and the web PUT, and **seven of eight concurrent
+writes were lost while all eight reported success**. The repair is a filesystem
+lock with no retries and an in-lock re-read: the second writer fails fast, exiting
+non-zero, returning 409, or reporting OPERATION_FAILED.
+
+That is a different answer to the same question, and the difference is the point
+of section 5. Their model refuses the second writer; this one keeps both. An
+append-only log with `merge=union` has no read-modify-write to lose, so two agents
+in separate worktrees appending concurrently produce the union of both sets of
+lines with nothing refused and nothing overwritten. Losing neither write beats
+rejecting one, and the class of bug they had to lock against is unrepresentable
+here rather than guarded.
+
+Still standing, dated to v1.48 unless noted: multi-writer identity collisions are
+their dominant unresolved failure, philosophically locked shut by their manifesto,
+and answered with a `doctor` repair command rather than prevention. Context cost
+was measured at fifteen to twenty percent of session tokens and the fix was
+declined; v1.50.1 cut cross-branch *latency* hard but the MCP surface keeps the
+cross-branch view, so the token claim is untouched by that work rather than
+refuted by it. No tool in the survey ships any mechanical enforcement of agent
+behaviour at all, which makes because-clause validation a real differentiator
+rather than table stakes.
 
 #### Encroachment risk
 
 `modifiedFiles` in v1.45 is adjacent to reverse lookup. An open task in their own
-board covers automatic drift detection. Against that: they removed a
-dependency-inference feature rather than finish it, and the maintainer
-consistently retreats from inference layers. Nothing suggests they are heading
+board covers automatic drift detection. `decision list` in v1.50.0 made decisions
+enumerable, which is the nearest they have come — but decisions remain separate
+ADR documents with free-form status, not an append-only record of what failed
+inside the task that failed it. Against all of it: they removed a
+dependency-inference feature rather than finish it, the maintainer consistently
+retreats from inference layers, and v1.50.1 shows him withdrawing from a shipped
+model under cost rather than extending it. Nothing suggests they are heading
 toward failed-approach logs.
 
 ### Entire
