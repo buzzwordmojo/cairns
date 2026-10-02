@@ -11,7 +11,7 @@ the source of truth is each task's `task.md` and append-only `log.ndjson`.
 
 | Task | Created | Questions | Log | Title |
 | --- | --- | --: | --: | --- |
-| [`t-2jppgtktpypzt0`](tasks/t-2jppgtktpypzt0/task.md) | 2026-09-30 |  |  | cairn related never answers from an index older than HEAD without saying so |
+| [`t-2jppgtktpypzt0`](tasks/t-2jppgtktpypzt0/task.md) | 2026-09-30 |  | 5 | cairn related never answers from an index older than HEAD without saying so |
 | [`t-2g47ydhq4d0k9e`](tasks/t-2g47ydhq4d0k9e/task.md) | 2026-08-30 | 1 | 4 | Publishing 0.0.4 is blocked: the npm token in ~/.npmrc is rejected |
 
 ## Open (1)
