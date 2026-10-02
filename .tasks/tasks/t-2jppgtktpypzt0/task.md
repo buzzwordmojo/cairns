@@ -2,9 +2,9 @@
 version: 1
 id: t-2jppgtktpypzt0
 title: cairn related never answers from an index older than HEAD without saying so
-status: open
+status: doing
 created: 2026-09-30
-updated: 2026-09-30
+updated: 2026-10-02
 targets: [src/lib/index-cache.ts, src/lib/related.ts, src/commands/retrieve.ts]
 night: true
 kind: build

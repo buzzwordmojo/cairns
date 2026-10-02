@@ -50,6 +50,16 @@ export function relatedCmd(args: Args): number {
 
   const r = related(board, path, { rebuild: flagBool(args, "rebuild", false) });
   console.log(`${bold(r.path)}\n`);
+  if (r.stale) {
+    // Printed before the results, not after: an agent that stops reading at the
+    // first hit must still learn the hits may be missing newer work.
+    const at = r.stale.head
+      ? `the index was built at ${r.stale.head}${r.stale.built ? ` (${r.stale.built.slice(0, 10)})` : ""}`
+      : `no index has been built`;
+    const now = r.stale.current ? `, HEAD is ${r.stale.current}` : "";
+    console.log(yellow(`⚠ stale: ${at}${now}, and it could not be rebuilt — ${r.stale.reason}.`));
+    console.log(yellow(`  commits since then are missing from this answer; it may be incomplete.\n`));
+  }
 
   const render = (row: (typeof r.closed)[number], label: string) => {
     console.log(`${bold(row.task.id)} ${dim(label)}  ${row.task.title}${methodTag(row.method)}`);
