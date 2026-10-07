@@ -7,18 +7,13 @@ the source of truth is each task's `task.md` and append-only `log.ndjson`.
 
 **Active:** [`t-2g4835yb84gr01`](tasks/t-2g4835yb84gr01/task.md) — Revisit whether closed tasks should move to a .done folder
 
-## In progress (2)
+## In progress (3)
 
 | Task | Created | Dead ends | Log | Title |
 | --- | --- | --: | --: | --- |
+| [`t-2jppgtktpypzt0`](tasks/t-2jppgtktpypzt0/task.md) | 2026-09-30 |  | 12 | cairn related never answers from an index older than HEAD without saying so |
 | [`t-2g4835yb84gr01`](tasks/t-2g4835yb84gr01/task.md) | 2026-08-30 | 1 | 6 | Revisit whether closed tasks should move to a .done folder |
 | [`t-2g47ydhq4d0k9e`](tasks/t-2g47ydhq4d0k9e/task.md) | 2026-08-30 |  | 5 | Publishing 0.0.4 is blocked: the npm token in ~/.npmrc is rejected |
-
-## Open (1)
-
-| Task | Created | Log | Title |
-| --- | --- | --: | --- |
-| [`t-2jppgtktpypzt0`](tasks/t-2jppgtktpypzt0/task.md) | 2026-09-30 | 5 | cairn related never answers from an index older than HEAD without saying so |
 
 <details>
 <summary><b>Dead ends (9)</b></summary>
