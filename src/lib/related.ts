@@ -1,6 +1,6 @@
 import { type Board, normalizePath } from "./board.js";
 import { hasCairnsHook } from "./git.js";
-import { getIndex } from "./index-cache.js";
+import { type Staleness, getFreshIndex } from "./index-cache.js";
 import { type LogEntry, openQuestionEntries, readLog, supersededIds } from "./log.js";
 import { type Task, listTasks } from "./task.js";
 
@@ -22,6 +22,8 @@ export interface RelatedResult {
   trailerCommitsInRepo: number;
   /** True when nothing matched — the caller must say so out loud. */
   empty: boolean;
+  /** Set when the trailer hits came from an index older than HEAD — the caller must say so. */
+  stale: Staleness | null;
 }
 
 const FINDING_ORDER: Record<string, number> = {
@@ -35,7 +37,7 @@ const FINDING_ORDER: Record<string, number> = {
 
 export function related(board: Board, rawPath: string, opts: { rebuild?: boolean } = {}): RelatedResult {
   const path = normalizePath(board, rawPath);
-  const idx = getIndex(board, { rebuild: opts.rebuild });
+  const { index: idx, stale } = getFreshIndex(board, { rebuild: opts.rebuild });
   const byTask = new Map<string, { method: Method; commits: string[] }>();
 
   for (const [file, tasks] of Object.entries(idx.paths)) {
@@ -90,6 +92,7 @@ export function related(board: Board, rawPath: string, opts: { rebuild?: boolean
     hooksInstalled,
     trailerCommitsInRepo: Object.keys(idx.tasks).length,
     empty: rows.length === 0,
+    stale,
   };
 }
 
