@@ -6,9 +6,9 @@ status: open
 created: 2026-09-30
 updated: 2026-09-30
 targets: [src/lib/index-cache.ts, src/lib/related.ts, src/commands/retrieve.ts]
-night: true
+night: false
 kind: build
-verify: bun test && bun run typecheck
+verify: bun install --silent && bun test && bun run typecheck
 scope:
   - src/lib/index-cache.ts
   - src/lib/related.ts
