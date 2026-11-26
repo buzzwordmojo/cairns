@@ -7,18 +7,20 @@ the source of truth is each task's `task.md` and append-only `log.ndjson`.
 
 **Active:** [`t-2g4835yb84gr01`](tasks/t-2g4835yb84gr01/task.md) — Revisit whether closed tasks should move to a .done folder
 
-## In progress (3)
+## In progress (2)
 
 | Task | Created | Dead ends | Log | Title |
 | --- | --- | --: | --: | --- |
 | [`t-2jppgtktpypzt0`](tasks/t-2jppgtktpypzt0/task.md) | 2026-09-30 |  | 12 | cairn related never answers from an index older than HEAD without saying so |
 | [`t-2g4835yb84gr01`](tasks/t-2g4835yb84gr01/task.md) | 2026-08-30 | 1 | 6 | Revisit whether closed tasks should move to a .done folder |
-| [`t-2g47ydhq4d0k9e`](tasks/t-2g47ydhq4d0k9e/task.md) | 2026-08-30 |  | 5 | Publishing 0.0.4 is blocked: the npm token in ~/.npmrc is rejected |
 
 <details>
-<summary><b>Dead ends (9)</b></summary>
+<summary><b>Dead ends (10)</b></summary>
 
 Approaches that were tried and failed, with the mechanism that killed them.
+
+- **2026-11-26** · [`t-2g47ydhq4d0k9e`](tasks/t-2g47ydhq4d0k9e/task.md) Publishing 0.0.4 is blocked: the npm token in ~/.npmrc is rejected
+  emailed npm OTP passed to npm publish --otp returns E403 because the emailed code is login-only; npm 403s instead of prompting, so web login alone cannot publish on this account
 
 - **2026-08-30** · [`t-2g4835yb84gr01`](tasks/t-2g4835yb84gr01/task.md) Revisit whether closed tasks should move to a .done folder
   moving closed tasks to a .done folder does not fix the 512 KB cliff because it only divides page growth by three, pushing the cliff from about 1670 tasks to about 5000 while leaving it linear — the page still grows without bound and still truncates silently, just later, and the cost is that taskDir, taskPath and logPath stop being pure joins
@@ -52,7 +54,13 @@ Approaches that were tried and failed, with the mechanism that killed them.
 </details>
 
 <details>
-<summary><b>Closed (10)</b></summary>
+<summary><b>Closed (11)</b></summary>
+
+### [`t-2g47ydhq4d0k9e`](tasks/t-2g47ydhq4d0k9e/task.md) — Publishing 0.0.4 is blocked: the npm token in ~/.npmrc is rejected
+
+closed 2026-11-26
+
+0.0.4 is on the registry (published 2026-11-26, tag v0.0.4 at 1a0d684). The old ~/.npmrc token was rejected (401). Web login worked only with --browser=false on npm 10.9, but publish still 403'd: the account logs in with emailed OTPs, which publish does not accept. What worked was a short-lived granular token Bob minted, used from a temp --userconfig file that was then deleted. Verified by installing cairns@0.0.4 from the registry into an empty repo: --version 0.0.4, and init, add and render ran. The tarball 404'd for ~4 minutes after the packument showed 0.0.4, which is CDN lag, not a failed publish. For the next release, set up an authenticator TOTP or GitHub trusted publishing.
 
 ### [`t-2g3dc8b2j8j7hy`](tasks/t-2g3dc8b2j8j7hy/task.md) — DESIGN.md section 15 is dated to Backlog.md v1.48 and one of its claims has been fixed upstream
 
